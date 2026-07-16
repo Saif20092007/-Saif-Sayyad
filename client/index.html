@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SS Plastotech — ERP & Invoice System</title>
+  <!-- Tailwind CSS via CDN for rapid clean styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Prevent layout shifting during module loading */
+    [v-cloak] { display: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col min-h-screen">
+
+  <!-- AUTH SCREEN (Login) -->
+  <div id="auth-screen" class="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg border border-slate-100">
+      <div class="text-center">
+        <h2 class="mt-6 text-3xl font-extrabold text-indigo-700 tracking-tight">SS Plastotech</h2>
+        <p class="mt-2 text-sm text-slate-500">Invoice & ERP System (Owner Portal)</p>
+      </div>
+      <form class="mt-8 space-y-6" id="login-form">
+        <div class="rounded-md shadow-sm -space-y-px">
+          <div>
+            <label for="email-address" class="sr-only">Email address</label>
+            <input id="email-address" name="email" type="email" autocomplete="email" required
+                   class="appearance-none rounded-none relative block w-full px-3 py-3 border border-slate-300 placeholder-slate-400 text-slate-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                   placeholder="Email address (default: owner@ssplastotech.com)">
+          </div>
+          <div>
+            <label for="password" class="sr-only">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required
+                   class="appearance-none rounded-none relative block w-full px-3 py-3 border border-slate-300 placeholder-slate-400 text-slate-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                   placeholder="Password (default: Admin@123)">
+          </div>
+        </div>
+
+        <div class="text-sm text-center text-slate-500 bg-slate-50 p-2 rounded">
+          <span>First login? Use default credentials above to auto-create and log in.</span>
+        </div>
+
+        <div id="login-error" class="hidden text-red-500 text-sm text-center bg-red-50 p-2 rounded border border-red-200"></div>
+
+        <div>
+          <button type="submit" class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
+            Sign In
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APP WRAPPER (Hidden initially) -->
+  <div id="app-wrapper" class="hidden flex-1 flex flex-col">
+    <!-- Navbar Header -->
+    <header class="bg-indigo-700 text-white shadow-md">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <i class="fa-solid fa-industry text-2xl text-indigo-200"></i>
+          <span class="font-bold text-xl tracking-wide">SS Plastotech ERP</span>
+        </div>
+        <div class="flex items-center space-x-6">
+          <span id="session-timer" class="text-xs text-indigo-200 bg-indigo-800 px-3 py-1.5 rounded-full font-mono">
+            Timeout: 60:00
+          </span>
+          <button onclick="logout()" class="text-sm font-medium text-indigo-100 hover:text-white flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span>Logout</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- App Body Container -->
+    <div class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+
+      <!-- Side Navigation Menu -->
+      <aside class="w-64 flex-shrink-0 bg-white border border-slate-200 rounded-xl p-4 shadow-sm h-fit space-y-1">
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">Core Dashboard</p>
+        <button onclick="switchTab('dashboard')" id="btn-dashboard" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition">
+          <i class="fa-solid fa-gauge w-5 text-indigo-500"></i>
+          <span>Dashboard</span>
+        </button>
+
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mt-6 mb-2">Master Records</p>
+        <button onclick="switchTab('company')" id="btn-company" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition">
+          <i class="fa-solid fa-building w-5 text-indigo-500"></i>
+          <span>Company Profile</span>
+        </button>
+        <button onclick="switchTab('customers')" id="btn-customers" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition">
+          <i class="fa-solid fa-users w-5 text-indigo-500"></i>
+          <span>Customers</span>
+        </button>
+        <button onclick="switchTab('suppliers')" id="btn-suppliers" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition">
+          <i class="fa-solid fa-truck w-5 text-indigo-500"></i>
+          <span>Suppliers</span>
+        </button>
+        <button onclick="switchTab('products')" id="btn-products" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition">
+          <i class="fa-solid fa-boxes-stacked w-5 text-indigo-500"></i>
+          <span>Products & Stock</span>
+        </button>
+
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mt-6 mb-2">Transactions (Later)</p>
+        <div class="text-xs text-slate-400 px-3 italic">Locked in Session 1</div>
+
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mt-6 mb-2">System Control</p>
+        <button onclick="switchTab('settings')" id="btn-settings" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition">
+          <i class="fa-solid fa-gears w-5 text-indigo-500"></i>
+          <span>Settings & Logs</span>
+        </button>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="flex-1 bg-white border border-slate-200 rounded-xl p-8 shadow-sm min-h-[500px]">
+
+        <!-- DASHBOARD TAB -->
+        <div id="tab-dashboard" class="tab-content space-y-6">
+          <h1 class="text-2xl font-bold text-slate-800">Welcome to SS Plastotech ERP</h1>
+          <p class="text-slate-500">Manage your business profile, suppliers, products, customers, and monitor activity security logs.</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+            <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100 flex items-center space-x-4">
+              <div class="p-3 bg-indigo-500 text-white rounded-lg"><i class="fa-solid fa-users text-xl"></i></div>
+              <div>
+                <p class="text-sm text-slate-500 font-medium">Total Customers</p>
+                <h3 class="text-2xl font-bold text-indigo-900" id="dash-customers-count">0</h3>
+              </div>
+            </div>
+            <div class="bg-emerald-50 p-6 rounded-xl border border-emerald-100 flex items-center space-x-4">
+              <div class="p-3 bg-emerald-500 text-white rounded-lg"><i class="fa-solid fa-truck text-xl"></i></div>
+              <div>
+                <p class="text-sm text-slate-500 font-medium">Total Suppliers</p>
+                <h3 class="text-2xl font-bold text-emerald-900" id="dash-suppliers-count">0</h3>
+              </div>
+            </div>
+            <div class="bg-amber-50 p-6 rounded-xl border border-amber-100 flex items-center space-x-4">
+              <div class="p-3 bg-amber-500 text-white rounded-lg"><i class="fa-solid fa-boxes-stacked text-xl"></i></div>
+              <div>
+                <p class="text-sm text-slate-500 font-medium">Product Catalog</p>
+                <h3 class="text-2xl font-bold text-amber-900" id="dash-products-count">0</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COMPANY PROFILE TAB -->
+        <div id="tab-company" class="tab-content hidden space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <h2 class="text-2xl font-bold text-slate-800">Company Profile</h2>
+            <p class="text-sm text-slate-500">Configure your business metadata for invoices & layout layouts</p>
+          </div>
+          <form id="company-form" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-medium text-slate-700">Company Name *</label>
+                <input type="text" name="name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700">GSTIN *</label>
+                <input type="text" name="gstin" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border" placeholder="e.g. 27AAPCP6240D1ZC">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700">PAN *</label>
+                <input type="text" name="pan" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border" placeholder="e.g. AAPCP6240D">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700">CIN</label>
+                <input type="text" name="cin" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border" placeholder="Corporate Identity Number">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700">Email Address *</label>
+                <input type="email" name="email" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700">Phone Number *</label>
+                <input type="text" name="phone" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border">
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700">Office / Factory Address *</label>
+              <textarea name="address" required rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border"></textarea>
+            </div>
+
+            <div class="border-t pt-6">
+              <h3 class="text-lg font-bold text-slate-800 mb-4">Bank Account Details</h3>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label class="block text-sm font-medium text-slate-700">Bank Name *</label>
+                  <input type="text" name="bank_name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700">Account Number *</label>
+                  <input type="text" name="bank_account_no" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700">IFSC Code *</label>
+                  <input type="text" name="bank_ifsc" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border">
+                </div>
+              </div>
+            </div>
+
+            <div class="border-t pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-medium text-slate-700">Company Logo (Base64 URL)</label>
+                <input type="text" name="logo_url" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border" placeholder="Paste Logo Image URL or Base64 string">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700">Authorized Signature (Base64 URL)</label>
+                <input type="text" name="signature_image_url" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border" placeholder="Paste Signature Image URL or Base64 string">
+              </div>
+            </div>
+
+            <div class="pt-4">
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition">
+                Save Profile Changes
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- CUSTOMERS TAB -->
+        <div id="tab-customers" class="tab-content hidden space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <h2 class="text-2xl font-bold text-slate-800">Customers Directory</h2>
+            <button onclick="openCustomerModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-plus"></i>
+              <span>Add Customer</span>
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Customer Name</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">GSTIN</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Phone</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Email</th>
+                  <th class="px-6 py-3.5 class text-right text-xs font-bold text-slate-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="customers-list" class="divide-y divide-slate-200 bg-white">
+                <!-- Loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SUPPLIERS TAB -->
+        <div id="tab-suppliers" class="tab-content hidden space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <h2 class="text-2xl font-bold text-slate-800">Suppliers Directory</h2>
+            <button onclick="openSupplierModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-plus"></i>
+              <span>Add Supplier</span>
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Supplier Name</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">GSTIN</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Phone</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Email</th>
+                  <th class="px-6 py-3.5 text-right text-xs font-bold text-slate-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="suppliers-list" class="divide-y divide-slate-200 bg-white">
+                <!-- Loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PRODUCTS TAB -->
+        <div id="tab-products" class="tab-content hidden space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <h2 class="text-2xl font-bold text-slate-800">Products Catalog & Stock</h2>
+            <button onclick="openProductModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-plus"></i>
+              <span>Add Product</span>
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Product Name</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">HSN Code</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">GST %</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Rate</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Available Stock</th>
+                  <th class="px-6 py-3.5 text-right text-xs font-bold text-slate-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="products-list" class="divide-y divide-slate-200 bg-white">
+                <!-- Loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SETTINGS TAB -->
+        <div id="tab-settings" class="tab-content hidden space-y-8">
+          <div class="flex justify-between items-center border-b pb-4">
+            <h2 class="text-2xl font-bold text-slate-800">System Control Panel</h2>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Global Config -->
+            <form id="settings-form" class="space-y-4 bg-slate-50 p-6 rounded-xl border border-slate-200">
+              <h3 class="text-lg font-bold text-slate-800">Application Settings</h3>
+              <div>
+                <label class="block text-sm font-medium text-slate-700">Inactivity Logout Duration (Minutes)</label>
+                <input type="number" name="inactivity_timeout_minutes" class="mt-1 block w-full rounded-md border-slate-300 p-2 border">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700">Invoice Number Prefix</label>
+                <input type="text" name="invoice_prefix" class="mt-1 block w-full rounded-md border-slate-300 p-2 border">
+              </div>
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded font-medium transition">
+                Update Settings
+              </button>
+            </form>
+
+            <!-- Change Password -->
+            <form id="password-form" class="space-y-4 bg-slate-50 p-6 rounded-xl border border-slate-200">
+              <h3 class="text-lg font-bold text-slate-800">Security: Change Password</h3>
+              <div>
+                <label class="block text-sm font-medium text-slate-700">Current Password</label>
+                <input type="password" name="oldPassword" required class="mt-1 block w-full rounded-md border-slate-300 p-2 border">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700">New Password</label>
+                <input type="password" name="newPassword" required class="mt-1 block w-full rounded-md border-slate-300 p-2 border">
+              </div>
+              <div id="password-feedback" class="hidden text-sm p-2 rounded"></div>
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded font-medium transition">
+                Update Password
+              </button>
+            </form>
+          </div>
+
+          <!-- Audit Log List -->
+          <div class="border-t pt-8">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Security & Audit logs</h3>
+            <div class="overflow-x-auto max-h-80 border rounded-lg">
+              <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Timestamp</th>
+                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Module</th>
+                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Event / Action</th>
+                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Reference ID</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-logs-list" class="divide-y divide-slate-200 bg-white">
+                  <!-- Loaded dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- CUSTOMER MODAL -->
+  <div id="customer-modal" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-xl border w-full max-w-lg p-6 space-y-4">
+      <h3 id="customer-modal-title" class="text-lg font-bold text-slate-800">Add New Customer</h3>
+      <form id="customer-modal-form" class="space-y-4">
+        <input type="hidden" name="id">
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Customer Name *</label>
+          <input type="text" name="name" required class="mt-1 block w-full border rounded-md p-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700">GSTIN</label>
+          <input type="text" name="gstin" class="mt-1 block w-full border rounded-md p-2" placeholder="e.g. 27AAPCP6240D1ZC">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Phone *</label>
+            <input type="text" name="phone" required class="mt-1 block w-full border rounded-md p-2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Email</label>
+            <input type="email" name="email" class="mt-1 block w-full border rounded-md p-2">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Billing Address *</label>
+          <textarea name="billing_address" required rows="2" class="mt-1 block w-full border rounded-md p-2"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Shipping Address *</label>
+          <textarea name="shipping_address" required rows="2" class="mt-1 block w-full border rounded-md p-2"></textarea>
+        </div>
+        <div class="flex justify-end space-x-3 pt-2">
+          <button type="button" onclick="closeCustomerModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-4 rounded">Cancel</button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SUPPLIER MODAL -->
+  <div id="supplier-modal" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-xl border w-full max-w-lg p-6 space-y-4">
+      <h3 id="supplier-modal-title" class="text-lg font-bold text-slate-800">Add New Supplier</h3>
+      <form id="supplier-modal-form" class="space-y-4">
+        <input type="hidden" name="id">
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Supplier Name *</label>
+          <input type="text" name="name" required class="mt-1 block w-full border rounded-md p-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700">GSTIN</label>
+          <input type="text" name="gstin" class="mt-1 block w-full border rounded-md p-2" placeholder="e.g. 27AAPCP6240D1ZC">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Phone *</label>
+            <input type="text" name="phone" required class="mt-1 block w-full border rounded-md p-2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Email</label>
+            <input type="email" name="email" class="mt-1 block w-full border rounded-md p-2">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Supplier Address *</label>
+          <textarea name="address" required rows="3" class="mt-1 block w-full border rounded-md p-2"></textarea>
+        </div>
+        <div class="flex justify-end space-x-3 pt-2">
+          <button type="button" onclick="closeSupplierModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-4 rounded">Cancel</button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- PRODUCT MODAL -->
+  <div id="product-modal" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-xl border w-full max-w-lg p-6 space-y-4">
+      <h3 id="product-modal-title" class="text-lg font-bold text-slate-800">Add New Product</h3>
+      <form id="product-modal-form" class="space-y-4">
+        <input type="hidden" name="id">
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Product Description *</label>
+          <input type="text" name="name" required class="mt-1 block w-full border rounded-md p-2" placeholder="e.g. HOUSING UPPER PART">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700">HSN Code *</label>
+            <input type="text" name="hsn_code" required class="mt-1 block w-full border rounded-md p-2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700">GST Percent (%) *</label>
+            <input type="number" step="0.01" name="gst_percent" required class="mt-1 block w-full border rounded-md p-2" value="18">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Default Rate (INR) *</label>
+            <input type="number" step="0.01" name="default_rate" required class="mt-1 block w-full border rounded-md p-2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Unit of Measure *</label>
+            <input type="text" name="unit" required class="mt-1 block w-full border rounded-md p-2" value="NOS" placeholder="e.g. NOS, KGS">
+          </div>
+        </div>
+        <div class="flex justify-end space-x-3 pt-2">
+          <button type="button" onclick="closeProductModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-4 rounded">Cancel</button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Global Toast Notification -->
+  <div id="toast" class="hidden fixed bottom-5 right-5 bg-slate-900 text-white px-6 py-3.5 rounded-lg shadow-xl flex items-center space-x-3 transition duration-150 transform translate-y-10 z-50">
+    <i class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toast-message">Action Complete!</span>
+  </div>
+
+  <footer class="bg-slate-100 border-t border-slate-200 py-4 text-center text-xs text-slate-400">
+    <span>SS Plastotech ERP © 2026. All Rights Reserved.</span>
+  </footer>
+
+  <!-- Single page app orchestrator JavaScript -->
+  <script src="/app.js"></script>
+</body>
+</html>

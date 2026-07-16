@@ -1,0 +1,61 @@
+{
+  "settings": [
+    {
+      "id": "def00000-0000-0000-0000-000000000000",
+      "inactivity_timeout_minutes": 60,
+      "invoice_prefix": "SSPT",
+      "backup_time": "02:00:00"
+    }
+  ],
+  "users": [
+    {
+      "id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "email": "owner@ssplastotech.com",
+      "password_hash": "e86f78a8a3caf0b60d8e74e5942aa6d86dc150cd3c03338aef25b7d2d7e3acc7",
+      "last_login": "2026-07-16T10:29:52.156Z",
+      "updated_at": "2026-07-16T10:29:52.156Z"
+    }
+  ],
+  "company_profile": [],
+  "customers": [
+    {
+      "id": "0e04fcba-c151-4419-ab22-262580279e0e",
+      "name": "Perfect Technologies Private Limited",
+      "gstin": "27AAPCP6240D1ZC",
+      "phone": "9175092040",
+      "email": "info@perfect-technologies.com",
+      "billing_address": "Shed No. 10 Gat No. 1583 Dehu Alandi Road, Pune 411062",
+      "shipping_address": "Shed No. 10 Gat No. 1583 Dehu Alandi Road, Pune 411062",
+      "created_at": "2026-07-16T10:29:59.480Z",
+      "updated_at": "2026-07-16T10:29:59.480Z"
+    }
+  ],
+  "suppliers": [],
+  "products": [],
+  "stock": {},
+  "invoices": [],
+  "invoice_items": [],
+  "purchases": [],
+  "purchase_items": [],
+  "payments": [],
+  "audit_logs": [
+    {
+      "id": "05134754-1e4c-4260-ac29-e25edc055760",
+      "user_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "action": "User Login",
+      "module": "auth",
+      "reference_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "created_at": "2026-07-16T10:29:52.157Z",
+      "updated_at": "2026-07-16T10:29:52.157Z"
+    },
+    {
+      "id": "88d38bdd-8047-4b8d-86c0-ad17ee48676f",
+      "user_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "action": "Create Customer",
+      "module": "customers",
+      "reference_id": "0e04fcba-c151-4419-ab22-262580279e0e",
+      "created_at": "2026-07-16T10:29:59.481Z",
+      "updated_at": "2026-07-16T10:29:59.481Z"
+    }
+  ]
+}
