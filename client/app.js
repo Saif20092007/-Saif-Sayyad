@@ -3,9 +3,10 @@
 const API_BASE = '/api';
 let token = localStorage.getItem('token') || '';
 let user = JSON.parse(localStorage.getItem('user') || 'null');
+let mustChangePassword = localStorage.getItem('must_change_password') === 'true';
 let inactivityTimer = null;
 let lastActiveTime = Date.now();
-const TIMEOUT_MINUTES = 60;
+let TIMEOUT_MINUTES = 60;
 
 // Initialize Page Load
 document.addEventListener('DOMContentLoaded', () => {
@@ -29,7 +30,12 @@ function setupApp() {
   if (token) {
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('app-wrapper').classList.remove('hidden');
-    switchTab('dashboard');
+    if (mustChangePassword) {
+      switchTab('settings');
+      showToast('Action Required: Please change your temporary/default password now.', 'exclamation-triangle');
+    } else {
+      switchTab('dashboard');
+    }
     startInactivityCounter();
   } else {
     document.getElementById('auth-screen').classList.remove('hidden');
@@ -49,6 +55,14 @@ async function apiFetch(endpoint, options = {}) {
     ...options,
     headers: { ...headers, ...options.headers }
   });
+
+  // Automatically parse refresh token from the server header response on successful request
+  const refreshToken = res.headers.get('X-Refresh-Token') || res.headers.get('x-refresh-token');
+  if (refreshToken) {
+    token = refreshToken;
+    localStorage.setItem('token', token);
+    lastActiveTime = Date.now(); // Reset inactive timer on successful authenticated transaction
+  }
 
   const data = await res.json();
   if (!res.ok) {
@@ -76,8 +90,10 @@ async function handleLogin(e) {
     });
     token = res.token;
     user = res.user;
+    mustChangePassword = !!res.must_change_password;
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('must_change_password', mustChangePassword ? 'true' : 'false');
     showToast('Signed in successfully!', 'check');
     setupApp();
   } catch (err) {
@@ -92,14 +108,21 @@ async function logout() {
   } catch (e) {}
   token = '';
   user = null;
+  mustChangePassword = false;
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  localStorage.removeItem('must_change_password');
   setupApp();
   showToast('Logged out successfully.');
 }
 
 // Tabs Orchestrations
 async function switchTab(tabId) {
+  if (mustChangePassword && tabId !== 'settings') {
+    showToast('Action Required: You must change your temporary password before accessing other modules.', 'exclamation-triangle');
+    return;
+  }
+
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('bg-indigo-50', 'text-indigo-700', 'border-l-4', 'border-indigo-600'));
 
@@ -539,6 +562,11 @@ async function handlePasswordChange(e) {
     form.reset();
     feedback.textContent = 'Password updated successfully!';
     feedback.className = 'text-green-600 bg-green-50 p-2 rounded border border-green-200 text-sm block';
+
+    // Clear the forced password change restriction on success
+    mustChangePassword = false;
+    localStorage.setItem('must_change_password', 'false');
+    showToast('Password changed successfully. Navigations enabled.', 'check');
   } catch (err) {
     feedback.textContent = err.message;
     feedback.className = 'text-red-600 bg-red-50 p-2 rounded border border-red-200 text-sm block';

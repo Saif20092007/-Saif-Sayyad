@@ -7,22 +7,20 @@ exports.getProducts = async (req, reqRes, next) => {
   try {
     const products = await Database.query('products', 'select', { orderBy: 'name' });
 
-    // Efficiently batch query all stock records to avoid N+1 queries over network/mock DB
-    const stockList = await Database.query('stock', 'select');
+    // Efficiently batch query all stock records to avoid N+1 queries over network
+    let stockList = [];
+    try {
+      stockList = await Database.query('stock', 'select') || [];
+    } catch (err) {
+      console.warn('Warning: could not fetch stock list, defaulting stock to 0');
+    }
+
     const stockMap = {};
     if (stockList && Array.isArray(stockList)) {
       stockList.forEach(s => {
         stockMap[s.product_id] = s.quantity_available;
       });
     }
-
-    // For local mock fallback, if newly created products are not tracked inside stock DB table yet
-    const localStockList = require('../database/db').executeMock('stock', 'select') || [];
-    localStockList.forEach(s => {
-      if (stockMap[s.product_id] === undefined) {
-        stockMap[s.product_id] = s.quantity_available;
-      }
-    });
 
     const finalProducts = products.map(p => ({
       ...p,

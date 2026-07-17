@@ -17,7 +17,7 @@ SS-Plastotech-System/
 │   ├── routes/              # Express Endpoints
 │   ├── controllers/         # Logic Handlers
 │   ├── middleware/          # Session, Auth & Error Middleware
-│   ├── database/            # Supabase / Local Fallback Database
+│   ├── database/            # Supabase Direct Database Client Layer
 │   ├── validators/          # Input schema format & bounds verification
 │   └── utils/               # App logging & Auditing
 ├── docs/
@@ -28,14 +28,32 @@ SS-Plastotech-System/
 ---
 
 ## 2. Environment Variables Configuration
-To run the server, create a file named `.env` in the `server/` directory with the following variables:
+To run the server, create a file named `.env` in the `server/` directory with the required variables.
+
+### Generating a Secure JWT_SECRET
+Do **NOT** use a default or sample JWT_SECRET in production. You should generate a strong, secure, cryptographically random secret string.
+
+You can generate a random secret via terminal commands:
+* **Node.js**:
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  ```
+* **OpenSSL**:
+  ```bash
+  openssl rand -hex 32
+  ```
+
+Copy the generated secret and assign it inside your environment variables configuration:
+
 ```ini
 PORT=5000
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1...
-JWT_SECRET=supersecretssp_2026_jwt
+JWT_SECRET=your_generated_cryptographically_secure_random_string_here
 ```
+
+*Note: The server will fail to start and crash immediately if `JWT_SECRET` is missing or empty.*
 
 ---
 

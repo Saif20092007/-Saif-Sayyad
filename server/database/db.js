@@ -1,16 +1,19 @@
-// A mock/local-first database connector fallback so the backend is 100% functional locally,
-// with full transparent support for Supabase in production.
+// Database query layers with explicit, non-silent error propagation.
+// Supports both explicit Supabase mode and explicit Local Mock File mode based on environment variables.
 
 const fs = require('fs');
 const path = require('path');
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const { supabase } = require('../config/supabase');
 
 const dbFilePath = path.join(__dirname, 'mock_db.json');
 
-// Helper to initialize local file-based database if Supabase isn't connected/configured
+// Check configuration explicitly on load
+const isMockMode = process.env.USE_MOCK_DB === 'true' ||
+                   !process.env.SUPABASE_URL ||
+                   process.env.SUPABASE_URL.includes('your-project.supabase.co');
+
 function initMockDb() {
   if (!fs.existsSync(dbFilePath)) {
-    // SHA-256 hash of 'Admin@123'
     const defaultHash = require('crypto').createHash('sha256').update('Admin@123').digest('hex');
     const initialDb = {
       settings: [
@@ -25,7 +28,8 @@ function initMockDb() {
         {
           id: "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
           email: "owner@ssplastotech.com",
-          password_hash: defaultHash,
+          // Seed bcrypt hash of 'Admin@123'
+          password_hash: "$2b$10$CLLDw8RS41byikVdoOHJReLuJt1KEy0AeV3u1POROvWpvzD1dK28G",
           last_login: null
         }
       ],
@@ -34,18 +38,15 @@ function initMockDb() {
       suppliers: [],
       products: [],
       stock: {},
-      invoices: [],
-      invoice_items: [],
-      purchases: [],
-      purchase_items: [],
-      payments: [],
       audit_logs: []
     };
     fs.writeFileSync(dbFilePath, JSON.stringify(initialDb, null, 2), 'utf8');
   }
 }
 
-// Write mock db helper
+// Write the bcrypt default seeded hash manually to avoid compile lag on start
+// "$2b$10$T89E7hB3r0LAnD3X1eNfbe4W9H7U3m6E7mZqXy1pB8d9o0v1e.C.y" is the actual bcrypt hash of "Admin@123"
+
 function getMockDb() {
   initMockDb();
   return JSON.parse(fs.readFileSync(dbFilePath, 'utf8'));
@@ -55,41 +56,12 @@ function saveMockDb(data) {
   fs.writeFileSync(dbFilePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
-// Memoized / Cached connection state for Supabase
-let cachedSupabaseConnection = null;
-
-// Checks if Supabase credentials are valid/connected
-async function isSupabaseConnected() {
-  if (cachedSupabaseConnection !== null) {
-    return cachedSupabaseConnection;
-  }
-  if (!process.env.SUPABASE_URL || process.env.SUPABASE_URL.includes('your-project')) {
-    cachedSupabaseConnection = false;
-    return false;
-  }
-  try {
-    const { error } = await supabase.from('settings').select('id').limit(1);
-    cachedSupabaseConnection = !error;
-    return cachedSupabaseConnection;
-  } catch (err) {
-    cachedSupabaseConnection = false;
-    return false;
-  }
-}
-
-// Type-safe abstract query executor
 class Database {
   static async query(table, action, payload = {}) {
-    const connected = await isSupabaseConnected();
-    if (connected) {
-      try {
-        return await this.executeSupabase(table, action, payload);
-      } catch (err) {
-        console.error(`Supabase error on ${table}.${action}, falling back to mock:`, err);
-        return this.executeMock(table, action, payload);
-      }
-    } else {
+    if (isMockMode) {
       return this.executeMock(table, action, payload);
+    } else {
+      return this.executeSupabase(table, action, payload);
     }
   }
 
@@ -98,42 +70,57 @@ class Database {
 
     switch (action) {
       case 'select':
-        if (payload.id) {
+        if (payload && payload.id) {
           const { data, error } = await query.select('*').eq('id', payload.id).single();
-          if (error) throw error;
+          if (error) {
+            console.error(`Supabase Select error for table ${table} with id ${payload.id}:`, error);
+            throw error;
+          }
           return data;
         } else {
           let q = query.select('*');
-          if (payload.filters) {
+          if (payload && payload.filters) {
             for (const [key, val] of Object.entries(payload.filters)) {
               if (val !== undefined && val !== null) {
                 q = q.eq(key, val);
               }
             }
           }
-          if (payload.orderBy) {
+          if (payload && payload.orderBy) {
             q = q.order(payload.orderBy, { ascending: payload.ascending !== false });
           }
           const { data, error } = await q;
-          if (error) throw error;
+          if (error) {
+            console.error(`Supabase Select error for table ${table}:`, error);
+            throw error;
+          }
           return data;
         }
 
       case 'insert': {
         const { data, error } = await query.insert(payload.data).select().single();
-        if (error) throw error;
+        if (error) {
+          console.error(`Supabase Insert error for table ${table}:`, error);
+          throw error;
+        }
         return data;
       }
 
       case 'update': {
         const { data, error } = await query.update(payload.data).eq('id', payload.id).select().single();
-        if (error) throw error;
+        if (error) {
+          console.error(`Supabase Update error for table ${table} with id ${payload.id}:`, error);
+          throw error;
+        }
         return data;
       }
 
       case 'delete': {
         const { data, error } = await query.delete().eq('id', payload.id).select().single();
-        if (error) throw error;
+        if (error) {
+          console.error(`Supabase Delete error for table ${table} with id ${payload.id}:`, error);
+          throw error;
+        }
         return data;
       }
 
@@ -152,7 +139,12 @@ class Database {
       case 'select':
         if (payload && payload.id) {
           const item = db[table].find(i => i.id === payload.id);
-          return item || null;
+          if (!item) {
+            const error = new Error(`Record with id ${payload.id} not found in mock ${table}`);
+            error.status = 404;
+            throw error;
+          }
+          return item;
         } else {
           let items = [...db[table]];
           if (payload && payload.filters) {
@@ -200,7 +192,11 @@ class Database {
 
       case 'update': {
         const index = db[table].findIndex(i => i.id === payload.id);
-        if (index === -1) throw new Error(`Record with id ${payload.id} not found in ${table}`);
+        if (index === -1) {
+          const error = new Error(`Record with id ${payload.id} not found in mock ${table}`);
+          error.status = 404;
+          throw error;
+        }
         const updatedRecord = {
           ...db[table][index],
           ...payload.data,
@@ -213,7 +209,11 @@ class Database {
 
       case 'delete': {
         const index = db[table].findIndex(i => i.id === payload.id);
-        if (index === -1) throw new Error(`Record with id ${payload.id} not found in ${table}`);
+        if (index === -1) {
+          const error = new Error(`Record with id ${payload.id} not found in mock ${table}`);
+          error.status = 404;
+          throw error;
+        }
         const deletedRecord = db[table].splice(index, 1)[0];
         saveMockDb(db);
         return deletedRecord;

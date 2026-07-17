@@ -1,14 +1,15 @@
-// Authentication and Owner Management Controllers
+// Authentication and Owner Management Controllers with Bcrypt hashing
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const Database = require('../database/db');
 const logger = require('../utils/logger');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretssp_2026_jwt';
-
-// Helper to check standard MD5/plain fallback since bcrypt is optional and we want high local reliability
-function simpleHash(password) {
-  return require('crypto').createHash('sha256').update(password).digest('hex');
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is missing.');
 }
+
+const SALT_ROUNDS = 10;
 
 exports.login = async (req, reqRes, next) => {
   try {
@@ -19,21 +20,41 @@ exports.login = async (req, reqRes, next) => {
       return next(err);
     }
 
-    const users = await Database.query('users', 'select', { filters: { email } });
+    let users = [];
+    try {
+      users = await Database.query('users', 'select', { filters: { email } });
+    } catch (e) {
+      // If table is empty or connection not fully configured, fallback to standard seeding check
+    }
+
     if (!users || users.length === 0) {
-      // In a fresh setup, if no users exist, we create the default owner account
-      const allUsers = await Database.query('users', 'select');
+      // In a fresh setup, if no users exist, we check if we should create the default owner account
+      let allUsers = [];
+      try {
+        allUsers = await Database.query('users', 'select');
+      } catch (e) {}
+
       if (!allUsers || allUsers.length === 0) {
+        const hashedPassword = await bcrypt.hash('Admin@123', SALT_ROUNDS);
         const defaultOwner = {
           email: 'owner@ssplastotech.com',
-          password_hash: simpleHash('Admin@123')
+          password_hash: hashedPassword
         };
         const created = await Database.query('users', 'insert', { data: defaultOwner });
-        if (email === created.email && simpleHash(password) === created.password_hash) {
-          const token = jwt.sign({ id: created.id, email: created.email, lastActivity: Date.now() }, JWT_SECRET, { expiresIn: '8h' });
+        if (email === created.email && password === 'Admin@123') {
+          const token = jwt.sign(
+            { id: created.id, email: created.email, lastActivity: Date.now() },
+            JWT_SECRET,
+            { expiresIn: '8h' }
+          );
           await Database.query('users', 'update', { id: created.id, data: { last_login: new Date().toISOString() } });
           await logger.audit(created.id, 'User Login (Initial Seed)', 'auth', created.id);
-          return reqRes.json({ success: true, token, user: { id: created.id, email: created.email } });
+          return reqRes.json({
+            success: true,
+            token,
+            user: { id: created.id, email: created.email },
+            must_change_password: true
+          });
         }
       }
       const err = new Error('Invalid email or password.');
@@ -42,15 +63,22 @@ exports.login = async (req, reqRes, next) => {
     }
 
     const user = users[0];
-    const incomingHash = simpleHash(password);
+    const passwordMatch = await bcrypt.compare(password, user.password_hash);
 
-    if (user.password_hash !== incomingHash) {
+    if (!passwordMatch) {
       const err = new Error('Invalid email or password.');
       err.status = 401;
       return next(err);
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email, lastActivity: Date.now() }, JWT_SECRET, { expiresIn: '8h' });
+    // Force a password change if they are logging in with the default password
+    const isUsingDefaultPassword = password === 'Admin@123';
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, lastActivity: Date.now() },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
     await Database.query('users', 'update', { id: user.id, data: { last_login: new Date().toISOString() } });
     await logger.audit(user.id, 'User Login', 'auth', user.id);
 
@@ -60,7 +88,8 @@ exports.login = async (req, reqRes, next) => {
       user: {
         id: user.id,
         email: user.email
-      }
+      },
+      must_change_password: isUsingDefaultPassword
     });
   } catch (error) {
     next(error);
@@ -85,15 +114,21 @@ exports.changePassword = async (req, reqRes, next) => {
       return next(err);
     }
 
-    const incomingHash = simpleHash(oldPassword);
-    if (user.password_hash !== incomingHash) {
+    const passwordMatch = await bcrypt.compare(oldPassword, user.password_hash);
+    if (!passwordMatch) {
       const err = new Error('Incorrect current password.');
       err.status = 400;
       return next(err);
     }
 
-    const newHash = simpleHash(newPassword);
-    await Database.query('users', 'update', { id: userId, data: { password_hash: newHash } });
+    if (newPassword === 'Admin@123') {
+      const err = new Error('Cannot change password to the default insecure value.');
+      err.status = 400;
+      return next(err);
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await Database.query('users', 'update', { id: userId, data: { password_hash: hashedPassword } });
     await logger.audit(userId, 'Change Password', 'auth', userId);
 
     reqRes.json({

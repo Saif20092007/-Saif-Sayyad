@@ -3,7 +3,10 @@ const jwt = require('jsonwebtoken');
 const Database = require('../database/db');
 const logger = require('../utils/logger');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretssp_2026_jwt';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is missing.');
+}
 
 async function authMiddleware(req, reqRes, next) {
   try {
@@ -23,9 +26,6 @@ async function authMiddleware(req, reqRes, next) {
       err.status = 401;
       return next(err);
     }
-
-    // Attach user payload to the request
-    req.user = decoded;
 
     // Cached inactivity timeout to prevent query overhead on every single API request
     if (!global.cachedInactivityTimeoutMs || (global.lastCacheTime && (Date.now() - global.lastCacheTime > 60000))) {
@@ -50,8 +50,19 @@ async function authMiddleware(req, reqRes, next) {
       }
     }
 
-    // Update activity timestamp for next request
-    req.user.lastActivity = Date.now();
+    // Attach user payload to the request
+    req.user = decoded;
+
+    // Issue refreshed token on each authenticated request
+    const refreshedToken = jwt.sign(
+      { id: decoded.id, email: decoded.email, lastActivity: Date.now() },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    // Expose header & set refresh token
+    reqRes.setHeader('Access-Control-Expose-Headers', 'X-Refresh-Token');
+    reqRes.setHeader('X-Refresh-Token', refreshedToken);
 
     next();
   } catch (error) {

@@ -1,8 +1,19 @@
 // Express Server Entry Point for SS Plastotech ERP
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+// Crash server on startup if JWT_SECRET is missing or empty
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+  console.error('\n==================================================================');
+  console.error('FATAL: JWT_SECRET is missing from the environment configuration.');
+  console.error('For safety, server cannot start without a secure JWT_SECRET defined.');
+  console.error('Please generate a secure, random string and set it in your .env');
+  console.error('==================================================================\n');
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const errorHandler = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 
