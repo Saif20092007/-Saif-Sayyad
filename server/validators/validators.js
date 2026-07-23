@@ -125,6 +125,46 @@ const validators = {
       isValid: errors.length === 0,
       errors
     };
+  },
+
+  validateInvoice: (data) => {
+    const errors = [];
+    if (!data.customer_id) {
+      errors.push('Customer ID is required.');
+    }
+    if (!data.invoice_date) {
+      errors.push('Invoice date is required.');
+    }
+    if (!data.place_of_supply || typeof data.place_of_supply !== 'string' || data.place_of_supply.trim() === '') {
+      errors.push('Place of supply is required.');
+    }
+    if (!data.tax_type || !['CGST_SGST', 'IGST'].includes(data.tax_type)) {
+      errors.push('Tax type must be CGST_SGST or IGST.');
+    }
+    if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+      errors.push('At least one line item is required.');
+    } else if (data.items.length > 50) {
+      errors.push('An invoice cannot contain more than 50 line items.');
+    } else {
+      data.items.forEach((item, index) => {
+        if (!item.product_id) {
+          errors.push(`Item #${index + 1} is missing product ID.`);
+        }
+        const qty = Number(item.qty);
+        if (isNaN(qty) || qty <= 0 || qty > 100000) {
+          errors.push(`Item #${index + 1} quantity must be a positive number greater than 0 and up to 100,000.`);
+        }
+        const rate = Number(item.rate);
+        if (isNaN(rate) || rate < 0 || rate > 10000000) {
+          errors.push(`Item #${index + 1} rate must be greater than or equal to 0 and up to 10,000,000.`);
+        }
+      });
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   }
 };
 

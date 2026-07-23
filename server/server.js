@@ -12,6 +12,18 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
   process.exit(1);
 }
 
+// Fail loudly in production if PUBLIC_APP_URL is missing or empty
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.PUBLIC_APP_URL || process.env.PUBLIC_APP_URL.trim() === '') {
+    console.error('\n==================================================================');
+    console.error('FATAL: PUBLIC_APP_URL is missing from production environment variables.');
+    console.error('For safety, QR code verification links must be generated with a valid public domain.');
+    console.error('Please define PUBLIC_APP_URL in your environment (e.g., https://yourdomain.com)');
+    console.error('==================================================================\n');
+    process.exit(1);
+  }
+}
+
 const express = require('express');
 const cors = require('cors');
 const errorHandler = require('./middleware/errorHandler');
@@ -24,16 +36,27 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' })); // Support larger base64 for logo/signatures
 
+const authMiddleware = require('./middleware/auth');
+const { mustChangePasswordMiddleware } = authMiddleware;
+
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/customers', require('./routes/customers'));
-app.use('/api/suppliers', require('./routes/suppliers'));
-app.use('/api/products', require('./routes/products'));
-app.use('/api/company-profile', require('./routes/companyProfile'));
-app.use('/api/settings', require('./routes/settings'));
+app.use('/api/customers', authMiddleware, mustChangePasswordMiddleware, require('./routes/customers'));
+app.use('/api/suppliers', authMiddleware, mustChangePasswordMiddleware, require('./routes/suppliers'));
+app.use('/api/products', authMiddleware, mustChangePasswordMiddleware, require('./routes/products'));
+app.use('/api/company-profile', authMiddleware, mustChangePasswordMiddleware, require('./routes/companyProfile'));
+app.use('/api/settings', authMiddleware, mustChangePasswordMiddleware, require('./routes/settings'));
+app.use('/api/invoices', authMiddleware, mustChangePasswordMiddleware, require('./routes/invoices'));
+app.use('/api/verify', require('./routes/verify')); // Public route
 
-// Static Client Files serving
+// Static Storage and Client Files serving
+app.use('/storage', express.static(path.join(__dirname, 'storage')));
 app.use(express.static(path.join(__dirname, '../client')));
+
+// Route for public read-only invoice verification page
+app.get('/verify/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/verify/index.html'));
+});
 
 // Fallback all other routes to client dashboard dashboard UI (SPA fallback)
 app.get('*', (req, res) => {

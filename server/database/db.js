@@ -38,14 +38,14 @@ function initMockDb() {
       suppliers: [],
       products: [],
       stock: {},
+      invoices: [],
+      invoice_items: [],
+      invoice_counters: {},
       audit_logs: []
     };
     fs.writeFileSync(dbFilePath, JSON.stringify(initialDb, null, 2), 'utf8');
   }
 }
-
-// Write the bcrypt default seeded hash manually to avoid compile lag on start
-// "$2b$10$T89E7hB3r0LAnD3X1eNfbe4W9H7U3m6E7mZqXy1pB8d9o0v1e.C.y" is the actual bcrypt hash of "Admin@123"
 
 function getMockDb() {
   initMockDb();
@@ -58,11 +58,133 @@ function saveMockDb(data) {
 
 class Database {
   static async query(table, action, payload = {}) {
+    if (action === 'rpc') {
+      if (isMockMode) {
+        return this.executeMockRpc(payload.function, payload.args);
+      } else {
+        return this.executeSupabaseRpc(payload.function, payload.args);
+      }
+    }
+
     if (isMockMode) {
       return this.executeMock(table, action, payload);
     } else {
       return this.executeSupabase(table, action, payload);
     }
+  }
+
+  static async executeSupabaseRpc(functionName, args) {
+    const { data, error } = await supabase.rpc(functionName, args);
+    if (error) {
+      console.error(`Supabase RPC error calling ${functionName}:`, error);
+      throw error;
+    }
+    return data;
+  }
+
+  static executeMockRpc(functionName, args = {}) {
+    const db = getMockDb();
+
+    if (functionName === 'get_next_invoice_number') {
+      if (!db.invoice_counters) {
+        db.invoice_counters = {};
+      }
+      const fy = args.fy || '2026-27';
+      const current = db.invoice_counters[fy] || 0;
+      const nextNum = current + 1;
+      db.invoice_counters[fy] = nextNum;
+      saveMockDb(db);
+      return nextNum;
+    }
+
+    if (functionName === 'create_invoice_transaction') {
+      const invoicePayload = args.invoice_payload || {};
+      const itemsPayload = args.items_payload || [];
+
+      const fy = invoicePayload.financial_year || '2026-27';
+      if (!db.invoice_counters) db.invoice_counters = {};
+      const currentCounter = db.invoice_counters[fy] || 0;
+      const nextNum = currentCounter + 1;
+      db.invoice_counters[fy] = nextNum;
+
+      const invoice_no = 'SSPT/' + fy + '/' + String(nextNum).padStart(6, '0');
+      const invoiceId = require('crypto').randomUUID();
+
+      // Validate stock levels before decrementing
+      for (const item of itemsPayload) {
+        const prodId = item.product_id;
+        const currentQty = db.stock[prodId]?.quantity_available || 0;
+        if (currentQty < item.qty) {
+          throw new Error(`Insufficient stock for product ID ${prodId}`);
+        }
+      }
+
+      // Decrement stock levels
+      for (const item of itemsPayload) {
+        const prodId = item.product_id;
+        db.stock[prodId].quantity_available -= item.qty;
+        db.stock[prodId].last_updated = new Date().toISOString();
+      }
+
+      // Insert invoice
+      const invoiceRow = {
+        id: invoiceId,
+        invoice_no,
+        financial_year: fy,
+        running_number: nextNum,
+        invoice_date: invoicePayload.invoice_date || new Date().toISOString().split('T')[0],
+        customer_id: invoicePayload.customer_id,
+        po_number: invoicePayload.po_number || null,
+        place_of_supply: invoicePayload.place_of_supply,
+        tax_type: invoicePayload.tax_type,
+        taxable_value: invoicePayload.taxable_value,
+        cgst_total: invoicePayload.cgst_total || 0,
+        sgst_total: invoicePayload.sgst_total || 0,
+        igst_total: invoicePayload.igst_total || 0,
+        round_off: invoicePayload.round_off || 0,
+        grand_total: invoicePayload.grand_total,
+        invoice_status: 'Active',
+        payment_status: 'Draft',
+        copy_type: invoicePayload.copy_type || 'Original',
+        is_signed_digital: !!invoicePayload.is_signed_digital,
+        verify_token: require('crypto').randomUUID(),
+        pdf_url: null,
+        pdf_generation_status: 'pending',
+        snapshot_customer_name: invoicePayload.snapshot_customer_name,
+        snapshot_customer_address: invoicePayload.snapshot_customer_address,
+        snapshot_customer_gstin: invoicePayload.snapshot_customer_gstin,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      if (!db.invoices) db.invoices = [];
+      db.invoices.push(invoiceRow);
+
+      // Insert items
+      if (!db.invoice_items) db.invoice_items = [];
+      for (const item of itemsPayload) {
+        db.invoice_items.push({
+          id: require('crypto').randomUUID(),
+          invoice_id: invoiceId,
+          product_id: item.product_id,
+          snapshot_description: item.snapshot_description,
+          snapshot_hsn: item.snapshot_hsn,
+          snapshot_gst_percent: item.snapshot_gst_percent,
+          qty: item.qty,
+          rate: item.rate,
+          taxable_amount: item.taxable_amount,
+          cgst_amount: item.cgst_amount || 0,
+          sgst_amount: item.sgst_amount || 0,
+          igst_amount: item.igst_amount || 0,
+          line_total: item.line_total
+        });
+      }
+
+      saveMockDb(db);
+      return invoiceId;
+    }
+
+    throw new Error(`Unsupported Mock RPC function: ${functionName}`);
   }
 
   static async executeSupabase(table, action, payload) {

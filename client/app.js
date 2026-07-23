@@ -555,10 +555,17 @@ async function handlePasswordChange(e) {
   feedback.classList.add('hidden');
 
   try {
-    await apiFetch('/auth/change-password', {
+    const res = await apiFetch('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify(payload)
     });
+
+    // Save updated token
+    if (res.token) {
+      token = res.token;
+      localStorage.setItem('token', token);
+    }
+
     form.reset();
     feedback.textContent = 'Password updated successfully!';
     feedback.className = 'text-green-600 bg-green-50 p-2 rounded border border-green-200 text-sm block';

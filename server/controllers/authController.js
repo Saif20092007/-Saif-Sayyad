@@ -43,7 +43,7 @@ exports.login = async (req, reqRes, next) => {
         const created = await Database.query('users', 'insert', { data: defaultOwner });
         if (email === created.email && password === 'Admin@123') {
           const token = jwt.sign(
-            { id: created.id, email: created.email, lastActivity: Date.now() },
+            { id: created.id, email: created.email, lastActivity: Date.now(), mustChangePassword: true },
             JWT_SECRET,
             { expiresIn: '8h' }
           );
@@ -75,7 +75,7 @@ exports.login = async (req, reqRes, next) => {
     const isUsingDefaultPassword = password === 'Admin@123';
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, lastActivity: Date.now() },
+      { id: user.id, email: user.email, lastActivity: Date.now(), mustChangePassword: isUsingDefaultPassword },
       JWT_SECRET,
       { expiresIn: '8h' }
     );
@@ -131,9 +131,17 @@ exports.changePassword = async (req, reqRes, next) => {
     await Database.query('users', 'update', { id: userId, data: { password_hash: hashedPassword } });
     await logger.audit(userId, 'Change Password', 'auth', userId);
 
+    // Generate fresh JWT token with mustChangePassword: false
+    const token = jwt.sign(
+      { id: user.id, email: user.email, lastActivity: Date.now(), mustChangePassword: false },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
     reqRes.json({
       success: true,
-      message: 'Password updated successfully.'
+      message: 'Password updated successfully.',
+      token
     });
   } catch (error) {
     next(error);

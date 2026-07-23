@@ -55,7 +55,7 @@ async function authMiddleware(req, reqRes, next) {
 
     // Issue refreshed token on each authenticated request
     const refreshedToken = jwt.sign(
-      { id: decoded.id, email: decoded.email, lastActivity: Date.now() },
+      { id: decoded.id, email: decoded.email, lastActivity: Date.now(), mustChangePassword: !!decoded.mustChangePassword },
       JWT_SECRET,
       { expiresIn: '8h' }
     );
@@ -70,4 +70,20 @@ async function authMiddleware(req, reqRes, next) {
   }
 }
 
+// Server-side enforcement middleware for forced password updates
+async function mustChangePasswordMiddleware(req, reqRes, next) {
+  try {
+    if (req.user && req.user.mustChangePassword) {
+      const err = new Error('Action Required: You must change your temporary password before accessing other modules.');
+      err.status = 403;
+      return next(err);
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = authMiddleware;
+module.exports.authMiddleware = authMiddleware;
+module.exports.mustChangePasswordMiddleware = mustChangePasswordMiddleware;
