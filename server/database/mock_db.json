@@ -11,19 +11,220 @@
     {
       "id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
       "email": "owner@ssplastotech.com",
-      "password_hash": "$2b$10$CLLDw8RS41byikVdoOHJReLuJt1KEy0AeV3u1POROvWpvzD1dK28G",
-      "last_login": null
+      "password_hash": "$2b$10$/rVj0YPdu1YDBTbjWfEyvOJEK2385WkYMZyzMrgYL1OMfr4PYpnZK",
+      "last_login": "2026-08-07T18:09:37.785Z",
+      "updated_at": "2026-08-07T18:09:39.002Z"
     }
   ],
-  "company_profile": [],
-  "customers": [],
-  "suppliers": [],
-  "products": [],
-  "stock": {},
-  "invoices": [],
-  "invoice_items": [],
+  "company_profile": [
+    {
+      "id": "39284dce-d0d5-49e0-8c1a-d6a8248bd79e",
+      "name": "SS Plastotech Industries",
+      "address": "Plot No. 12, Sector 5, Chakan MIDC, Pune - 410501",
+      "gstin": "27AAPCP6240D1ZC",
+      "pan": "AAPCP6240D",
+      "cin": "",
+      "email": "owner@ssplastotech.com",
+      "phone": "+91 9876543210",
+      "bank_name": "State Bank of India",
+      "bank_account_no": "32109876543",
+      "bank_ifsc": "SBIN0001234",
+      "logo_url": "",
+      "signature_image_url": "",
+      "created_at": "2026-08-07T18:09:40.633Z",
+      "updated_at": "2026-08-07T18:09:40.633Z"
+    }
+  ],
+  "customers": [
+    {
+      "id": "c197434d-7cfc-4455-8f42-c89e1e908c17",
+      "name": "Auto Tech Pvt Ltd",
+      "gstin": "27AAACA1234A1Z1",
+      "phone": "+91 20 12345678",
+      "email": "info@autotech.com",
+      "billing_address": "Sector 4, Bhosari, Pune - 411026",
+      "shipping_address": "Sector 4, Bhosari, Pune - 411026",
+      "created_at": "2026-08-07T18:09:42.867Z",
+      "updated_at": "2026-08-07T18:09:42.867Z"
+    }
+  ],
+  "suppliers": [
+    {
+      "id": "32c23944-4d92-48f6-9b8a-ed0d8fd7f958",
+      "name": "Plasto Suppliers Ltd",
+      "gstin": "27AAAPS4321P1Z5",
+      "phone": "+91 9999999999",
+      "email": "sales@plastosuppliers.com",
+      "address": "Talawade Industrial Area, Pune - 411044",
+      "created_at": "2026-08-07T18:09:45.068Z",
+      "updated_at": "2026-08-07T18:09:45.068Z"
+    }
+  ],
+  "products": [
+    {
+      "id": "e13f0e83-8670-4bcb-b0f0-5427f4987a0d",
+      "name": "MOCK HOUSING UPPER PART",
+      "hsn_code": "87089900",
+      "gst_percent": 18,
+      "default_rate": 450,
+      "unit": "NOS",
+      "created_at": "2026-08-07T18:09:47.246Z",
+      "updated_at": "2026-08-07T18:09:47.246Z"
+    }
+  ],
+  "stock": [
+    {
+      "product_id": "e13f0e83-8670-4bcb-b0f0-5427f4987a0d",
+      "quantity_available": 85,
+      "last_updated": "2026-08-07T18:09:53.713Z"
+    }
+  ],
+  "invoices": [
+    {
+      "id": "73371b97-5f87-4513-91fa-d582c896c23f",
+      "invoice_no": "SSPT/2026-27/000011",
+      "financial_year": "2026-27",
+      "running_number": 11,
+      "invoice_date": "2026-08-07",
+      "customer_id": "c197434d-7cfc-4455-8f42-c89e1e908c17",
+      "po_number": "PO-1004",
+      "place_of_supply": "Maharashtra",
+      "tax_type": "CGST_SGST",
+      "taxable_value": 6750,
+      "cgst_total": 607.5,
+      "sgst_total": 607.5,
+      "igst_total": 0,
+      "round_off": 0,
+      "grand_total": 7965,
+      "invoice_status": "Active",
+      "payment_status": "Draft",
+      "copy_type": "Original",
+      "is_signed_digital": true,
+      "verify_token": "7476ecc5-272e-40e7-9e7e-688a1078b644",
+      "pdf_url": "/storage/pdfs/SSPT_2026-27_000011.pdf",
+      "pdf_generation_status": "success",
+      "snapshot_customer_name": "Auto Tech Pvt Ltd",
+      "snapshot_customer_address": "Sector 4, Bhosari, Pune - 411026",
+      "snapshot_customer_gstin": "27AAACA1234A1Z1",
+      "created_at": "2026-08-07T18:09:53.714Z",
+      "updated_at": "2026-08-07T18:09:56.769Z"
+    }
+  ],
+  "invoice_items": [
+    {
+      "id": "5d20158d-98d8-48aa-bd70-4de6c06b8f72",
+      "invoice_id": "73371b97-5f87-4513-91fa-d582c896c23f",
+      "product_id": "e13f0e83-8670-4bcb-b0f0-5427f4987a0d",
+      "snapshot_description": "MOCK HOUSING UPPER PART",
+      "snapshot_hsn": "87089900",
+      "snapshot_gst_percent": 18,
+      "qty": 15,
+      "rate": 450,
+      "taxable_amount": 6750,
+      "cgst_amount": 607.5,
+      "sgst_amount": 607.5,
+      "igst_amount": 0,
+      "line_total": 7965
+    }
+  ],
   "invoice_counters": {
-    "2026-27": 10
+    "2026-27": 11
   },
-  "audit_logs": []
+  "audit_logs": [
+    {
+      "id": "ab1b7acd-2b24-4c94-970c-33718c95f127",
+      "user_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "action": "User Login",
+      "module": "auth",
+      "reference_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "created_at": "2026-08-07T18:09:37.788Z",
+      "updated_at": "2026-08-07T18:09:37.788Z"
+    },
+    {
+      "id": "66bec2ab-b3b5-4060-9a2d-597274e3a08a",
+      "user_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "action": "Change Password",
+      "module": "auth",
+      "reference_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "created_at": "2026-08-07T18:09:39.003Z",
+      "updated_at": "2026-08-07T18:09:39.003Z"
+    },
+    {
+      "id": "32636ca6-8ff3-4e57-9e03-68a8dea8fff6",
+      "user_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "action": "Update Company Profile",
+      "module": "company_profile",
+      "reference_id": "39284dce-d0d5-49e0-8c1a-d6a8248bd79e",
+      "created_at": "2026-08-07T18:09:40.633Z",
+      "updated_at": "2026-08-07T18:09:40.633Z"
+    },
+    {
+      "id": "3a8d6900-8f7b-4438-82a4-aca3f5c5a662",
+      "user_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "action": "Create Customer",
+      "module": "customers",
+      "reference_id": "c197434d-7cfc-4455-8f42-c89e1e908c17",
+      "created_at": "2026-08-07T18:09:42.868Z",
+      "updated_at": "2026-08-07T18:09:42.868Z"
+    },
+    {
+      "id": "97a55b2c-f7d2-41ae-80c5-8c75799cab21",
+      "user_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "action": "Create Supplier",
+      "module": "suppliers",
+      "reference_id": "32c23944-4d92-48f6-9b8a-ed0d8fd7f958",
+      "created_at": "2026-08-07T18:09:45.069Z",
+      "updated_at": "2026-08-07T18:09:45.069Z"
+    },
+    {
+      "id": "2308b80a-7224-4f7d-b9ac-8df032c28728",
+      "user_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "action": "Create Product",
+      "module": "products",
+      "reference_id": "e13f0e83-8670-4bcb-b0f0-5427f4987a0d",
+      "created_at": "2026-08-07T18:09:47.246Z",
+      "updated_at": "2026-08-07T18:09:47.246Z"
+    },
+    {
+      "id": "6c5aa75b-ca1f-4620-aa5f-4e977e31db1d",
+      "user_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "action": "Create Purchase",
+      "module": "purchases",
+      "reference_id": "19029c69-627e-4029-86bb-b6ab951a4f8b",
+      "created_at": "2026-08-07T18:09:50.500Z",
+      "updated_at": "2026-08-07T18:09:50.500Z"
+    },
+    {
+      "id": "e22eacf2-0fc8-41f5-9a00-f13979c08970",
+      "user_id": "3c3a9d4e-b5f7-4180-87a3-cb20ea85fc1a",
+      "action": "Create Invoice",
+      "module": "invoices",
+      "reference_id": "73371b97-5f87-4513-91fa-d582c896c23f",
+      "created_at": "2026-08-07T18:09:53.715Z",
+      "updated_at": "2026-08-07T18:09:53.715Z"
+    }
+  ],
+  "purchases": [
+    {
+      "id": "19029c69-627e-4029-86bb-b6ab951a4f8b",
+      "supplier_id": "32c23944-4d92-48f6-9b8a-ed0d8fd7f958",
+      "purchase_date": "2026-08-07",
+      "invoice_ref": "SUP-REF-0012",
+      "total_amount": 30000,
+      "created_at": "2026-08-07T18:09:50.499Z",
+      "updated_at": "2026-08-07T18:09:50.499Z"
+    }
+  ],
+  "purchase_items": [
+    {
+      "id": "fbc1b2ab-bc30-4144-8ff9-fcbf54ed06a9",
+      "purchase_id": "19029c69-627e-4029-86bb-b6ab951a4f8b",
+      "product_id": "e13f0e83-8670-4bcb-b0f0-5427f4987a0d",
+      "qty": 100,
+      "rate": 300,
+      "amount": 30000,
+      "created_at": "2026-08-07T18:09:50.499Z"
+    }
+  ],
+  "payments": []
 }

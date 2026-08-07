@@ -47,6 +47,10 @@ app.use('/api/products', authMiddleware, mustChangePasswordMiddleware, require('
 app.use('/api/company-profile', authMiddleware, mustChangePasswordMiddleware, require('./routes/companyProfile'));
 app.use('/api/settings', authMiddleware, mustChangePasswordMiddleware, require('./routes/settings'));
 app.use('/api/invoices', authMiddleware, mustChangePasswordMiddleware, require('./routes/invoices'));
+app.use('/api/purchases', authMiddleware, mustChangePasswordMiddleware, require('./routes/purchases'));
+app.use('/api/payments', authMiddleware, mustChangePasswordMiddleware, require('./routes/payments'));
+app.use('/api/ledger', authMiddleware, mustChangePasswordMiddleware, require('./routes/ledger'));
+app.use('/api/reports', authMiddleware, mustChangePasswordMiddleware, require('./routes/reports'));
 app.use('/api/verify', require('./routes/verify')); // Public route
 
 // Static Storage and Client Files serving
@@ -65,6 +69,10 @@ app.get('*', (req, res) => {
 
 // Centralized error handling middleware
 app.use(errorHandler);
+
+// Initialize background auto backup scheduler
+const backupService = require('./services/backupService');
+backupService.startAutoBackupScheduler();
 
 app.listen(PORT, () => {
   logger.info(`SS Plastotech ERP Server running on port ${PORT}`);

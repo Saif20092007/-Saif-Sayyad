@@ -308,6 +308,106 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Stored Procedure: cancel_invoice_transaction
+-- Atomically cancels an active invoice and restores (adds back) its items to stock.
+CREATE OR REPLACE FUNCTION cancel_invoice_transaction(p_invoice_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+    item_record RECORD;
+BEGIN
+    -- Update invoice status, ensure it was active
+    UPDATE invoices
+    SET invoice_status = 'Cancelled',
+        updated_at = timezone('utc'::text, now())
+    WHERE id = p_invoice_id AND invoice_status = 'Active';
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Invoice is not active or already cancelled.';
+    END IF;
+
+    -- Loop through items and restore stock
+    FOR item_record IN SELECT product_id, qty FROM invoice_items WHERE invoice_id = p_invoice_id
+    LOOP
+        UPDATE stock
+        SET quantity_available = quantity_available + item_record.qty,
+            last_updated = timezone('utc'::text, now())
+        WHERE product_id = item_record.product_id;
+    END LOOP;
+
+    RETURN true;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Stored Procedure: create_purchase_transaction
+-- Atomically records a purchase and increments (increases) product stock levels.
+CREATE OR REPLACE FUNCTION create_purchase_transaction(
+    purchase_payload JSONB,
+    items_payload JSONB
+)
+RETURNS UUID AS $$
+DECLARE
+    new_purchase_id UUID;
+    item_record JSONB;
+    p_id UUID;
+    qty_added NUMERIC(12,3);
+BEGIN
+    new_purchase_id := COALESCE((purchase_payload->>'id')::UUID, uuid_generate_v4());
+
+    -- Insert purchase header
+    INSERT INTO purchases (
+        id,
+        supplier_id,
+        purchase_date,
+        invoice_ref,
+        total_amount,
+        created_at,
+        updated_at
+    ) VALUES (
+        new_purchase_id,
+        (purchase_payload->>'supplier_id')::UUID,
+        (purchase_payload->>'purchase_date')::DATE,
+        purchase_payload->>'invoice_ref',
+        (purchase_payload->>'total_amount')::NUMERIC(12,2),
+        timezone('utc'::text, now()),
+        timezone('utc'::text, now())
+    );
+
+    -- Insert items and increment stock levels
+    FOR item_record IN SELECT * FROM jsonb_array_elements(items_payload)
+    LOOP
+        p_id := (item_record->>'product_id')::UUID;
+        qty_added := (item_record->>'qty')::NUMERIC(12,3);
+
+        -- Insert purchase item
+        INSERT INTO purchase_items (
+            id,
+            purchase_id,
+            product_id,
+            qty,
+            rate,
+            amount,
+            created_at
+        ) VALUES (
+            uuid_generate_v4(),
+            new_purchase_id,
+            p_id,
+            qty_added,
+            (item_record->>'rate')::NUMERIC(12,2),
+            (item_record->>'amount')::NUMERIC(12,2),
+            timezone('utc'::text, now())
+        );
+
+        -- Update stock
+        UPDATE stock
+        SET quantity_available = quantity_available + qty_added,
+            last_updated = timezone('utc'::text, now())
+        WHERE product_id = p_id;
+    END LOOP;
+
+    RETURN new_purchase_id;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Table: purchases
 CREATE TABLE IF NOT EXISTS purchases (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

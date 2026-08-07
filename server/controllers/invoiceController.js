@@ -119,6 +119,154 @@ exports.createInvoice = async (req, reqRes, next) => {
   }
 };
 
+const https = require('https');
+const http = require('http');
+
+function fetchPdfBuffer(pdfUrl) {
+  return new Promise((resolve, reject) => {
+    if (pdfUrl.startsWith('/storage/')) {
+      // Local file
+      const localPath = path.join(__dirname, '../../client', pdfUrl);
+      fs.readFile(localPath, (err, data) => {
+        if (err) reject(err);
+        else resolve(data);
+      });
+    } else {
+      // Remote URL
+      const client = pdfUrl.startsWith('https') ? https : http;
+      client.get(pdfUrl, (res) => {
+        const chunks = [];
+        res.on('data', chunk => chunks.push(chunk));
+        res.on('end', () => resolve(Buffer.concat(chunks)));
+        res.on('error', err => reject(err));
+      }).on('error', err => reject(err));
+    }
+  });
+}
+
+exports.emailInvoice = async (req, reqRes, next) => {
+  try {
+    const invoiceId = req.params.id;
+    const invoice = await Database.query('invoices', 'select', { id: invoiceId });
+    if (!invoice) {
+      const err = new Error('Invoice not found.');
+      err.status = 404;
+      return next(err);
+    }
+
+    // Look up customer email
+    const customer = await Database.query('customers', 'select', { id: invoice.customer_id });
+    const targetEmail = customer ? customer.email : null;
+
+    if (!targetEmail || targetEmail.trim() === '') {
+      const err = new Error('Customer does not have a registered email address.');
+      err.status = 400;
+      return next(err);
+    }
+
+    // Ensure PDF is generated
+    let pdfUrl = invoice.pdf_url;
+    if (!pdfUrl || invoice.pdf_generation_status !== 'success') {
+      // Try generating it synchronously now
+      pdfUrl = await pdfService.generateInvoicePDF(invoiceId);
+    }
+
+    // Retrieve PDF buffer
+    let pdfBuffer;
+    try {
+      pdfBuffer = await fetchPdfBuffer(pdfUrl);
+    } catch (err) {
+      const error = new Error(`Failed to retrieve invoice PDF attachment: ${err.message}`);
+      error.status = 500;
+      return next(error);
+    }
+
+    const emailUser = process.env.EMAIL_USERNAME || '';
+    const emailPass = process.env.EMAIL_PASSWORD || '';
+    const isMockEmail = emailUser.includes('example.com') || emailUser === '' || emailPass === 'emailpassword';
+
+    const subject = `Tax Invoice ${invoice.invoice_no} from SS Plastotech`;
+    const textBody = `Dear ${customer.name},\n\nPlease find attached tax invoice ${invoice.invoice_no} dated ${new Date(invoice.invoice_date).toLocaleDateString('en-GB')} from SS Plastotech.\n\nTotal Amount Due: INR ${Number(invoice.grand_total).toFixed(2)}\n\nThank you for your business!\n\nBest Regards,\nSS Plastotech ERP`;
+
+    if (isMockEmail) {
+      logger.info(`[MOCK EMAIL SENT] to: ${targetEmail} | Subject: ${subject}`);
+      logger.info(`Attachment details: file="${invoice.invoice_no.replace(/\//g, '_')}.pdf" size=${pdfBuffer.length} bytes`);
+      reqRes.json({
+        success: true,
+        message: `Email simulation successful. Dispatched to: ${targetEmail}`
+      });
+    } else {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com', // or generic smtp
+        port: 465,
+        secure: true,
+        auth: {
+          user: emailUser,
+          pass: emailPass
+        }
+      });
+
+      await transporter.sendMail({
+        from: `"SS Plastotech" <${emailUser}>`,
+        to: targetEmail,
+        subject: subject,
+        text: textBody,
+        attachments: [
+          {
+            filename: `${invoice.invoice_no.replace(/\//g, '_')}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }
+        ]
+      });
+
+      reqRes.json({
+        success: true,
+        message: `Invoice emailed successfully to ${targetEmail}.`
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.cancelInvoice = async (req, reqRes, next) => {
+  try {
+    const invoiceId = req.params.id;
+
+    // Check if invoice exists
+    const invoice = await Database.query('invoices', 'select', { id: invoiceId });
+    if (!invoice) {
+      const err = new Error('Invoice not found.');
+      err.status = 404;
+      return next(err);
+    }
+
+    if (invoice.invoice_status === 'Cancelled') {
+      const err = new Error('Invoice is already cancelled.');
+      err.status = 400;
+      return next(err);
+    }
+
+    // Call atomic cancel RPC
+    await Database.query(null, 'rpc', {
+      function: 'cancel_invoice_transaction',
+      args: { p_invoice_id: invoiceId }
+    });
+
+    // Log the action to audit logs
+    await logger.audit(req.user ? req.user.id : null, 'Cancel Invoice', 'invoices', invoiceId);
+
+    reqRes.json({
+      success: true,
+      message: 'Invoice cancelled successfully and stock restored.'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getInvoices = async (req, reqRes, next) => {
   try {
     const invoices = await Database.query('invoices', 'select', { orderBy: 'created_at', ascending: false });

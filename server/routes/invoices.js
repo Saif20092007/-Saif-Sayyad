@@ -7,5 +7,7 @@ router.get('/', invoiceController.getInvoices);
 router.get('/:id', invoiceController.getInvoiceById);
 router.get('/:id/pdf', invoiceController.getInvoicePDF);
 router.post('/:id/regenerate-pdf', invoiceController.regeneratePDF);
+router.put('/:id/cancel', invoiceController.cancelInvoice);
+router.post('/:id/email', invoiceController.emailInvoice);
 
 module.exports = router;

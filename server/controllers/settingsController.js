@@ -1,6 +1,39 @@
 // Settings Controller
 const Database = require('../database/db');
 const logger = require('../utils/logger');
+const backupService = require('../services/backupService');
+
+exports.exportBackup = async (req, reqRes, next) => {
+  try {
+    const dump = await backupService.dumpDatabase();
+
+    reqRes.setHeader('Content-Type', 'application/json');
+    reqRes.setHeader('Content-Disposition', `attachment; filename=ss_plastotech_backup_${Date.now()}.json`);
+    reqRes.send(JSON.stringify(dump, null, 2));
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.importBackup = async (req, reqRes, next) => {
+  try {
+    if (!req.body || typeof req.body !== 'object') {
+      const err = new Error('Invalid or empty backup data payload.');
+      err.status = 400;
+      return next(err);
+    }
+
+    await backupService.restoreDatabase(req.body);
+    await logger.audit(req.user ? req.user.id : null, 'Restore Backup', 'settings', null);
+
+    reqRes.json({
+      success: true,
+      message: 'Database backup restored successfully.'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 exports.getSettings = async (req, reqRes, next) => {
   try {

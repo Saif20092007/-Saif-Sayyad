@@ -14,7 +14,6 @@ const isMockMode = process.env.USE_MOCK_DB === 'true' ||
 
 function initMockDb() {
   if (!fs.existsSync(dbFilePath)) {
-    const defaultHash = require('crypto').createHash('sha256').update('Admin@123').digest('hex');
     const initialDb = {
       settings: [
         {
@@ -37,13 +36,39 @@ function initMockDb() {
       customers: [],
       suppliers: [],
       products: [],
-      stock: {},
+      stock: [], // Array based to match standard table structure
       invoices: [],
       invoice_items: [],
       invoice_counters: {},
-      audit_logs: []
+      audit_logs: [],
+      purchases: [],
+      purchase_items: [],
+      payments: []
     };
     fs.writeFileSync(dbFilePath, JSON.stringify(initialDb, null, 2), 'utf8');
+  } else {
+    // If mock db exists, make sure new tables exist
+    const db = JSON.parse(fs.readFileSync(dbFilePath, 'utf8'));
+    let updated = false;
+    if (!db.purchases) { db.purchases = []; updated = true; }
+    if (!db.purchase_items) { db.purchase_items = []; updated = true; }
+    if (!db.payments) { db.payments = []; updated = true; }
+    if (db.stock && !Array.isArray(db.stock)) {
+      // Convert stock object to array format
+      const stockArr = [];
+      for (const [prodId, val] of Object.entries(db.stock)) {
+        stockArr.push({
+          product_id: prodId,
+          quantity_available: val.quantity_available || 0,
+          last_updated: val.last_updated || new Date().toISOString()
+        });
+      }
+      db.stock = stockArr;
+      updated = true;
+    }
+    if (updated) {
+      fs.writeFileSync(dbFilePath, JSON.stringify(db, null, 2), 'utf8');
+    }
   }
 }
 
@@ -108,12 +133,16 @@ class Database {
       db.invoice_counters[fy] = nextNum;
 
       const invoice_no = 'SSPT/' + fy + '/' + String(nextNum).padStart(6, '0');
-      const invoiceId = require('crypto').randomUUID();
+      const invoiceId = invoicePayload.id || require('crypto').randomUUID();
+
+      // Ensure stock array exists
+      if (!db.stock) db.stock = [];
 
       // Validate stock levels before decrementing
       for (const item of itemsPayload) {
         const prodId = item.product_id;
-        const currentQty = db.stock[prodId]?.quantity_available || 0;
+        const stockRecord = db.stock.find(s => s.product_id === prodId);
+        const currentQty = stockRecord ? stockRecord.quantity_available : 0;
         if (currentQty < item.qty) {
           throw new Error(`Insufficient stock for product ID ${prodId}`);
         }
@@ -122,8 +151,11 @@ class Database {
       // Decrement stock levels
       for (const item of itemsPayload) {
         const prodId = item.product_id;
-        db.stock[prodId].quantity_available -= item.qty;
-        db.stock[prodId].last_updated = new Date().toISOString();
+        const stockRecord = db.stock.find(s => s.product_id === prodId);
+        if (stockRecord) {
+          stockRecord.quantity_available -= item.qty;
+          stockRecord.last_updated = new Date().toISOString();
+        }
       }
 
       // Insert invoice
@@ -138,13 +170,14 @@ class Database {
         place_of_supply: invoicePayload.place_of_supply,
         tax_type: invoicePayload.tax_type,
         taxable_value: invoicePayload.taxable_value,
+        checkpoint_status: invoicePayload.checkpoint_status,
         cgst_total: invoicePayload.cgst_total || 0,
         sgst_total: invoicePayload.sgst_total || 0,
         igst_total: invoicePayload.igst_total || 0,
         round_off: invoicePayload.round_off || 0,
         grand_total: invoicePayload.grand_total,
         invoice_status: 'Active',
-        payment_status: 'Draft',
+        payment_status: invoicePayload.payment_status || 'Draft',
         copy_type: invoicePayload.copy_type || 'Original',
         is_signed_digital: !!invoicePayload.is_signed_digital,
         verify_token: require('crypto').randomUUID(),
@@ -182,6 +215,86 @@ class Database {
 
       saveMockDb(db);
       return invoiceId;
+    }
+
+    if (functionName === 'cancel_invoice_transaction') {
+      const p_invoice_id = args.p_invoice_id;
+      const invoice = db.invoices.find(i => i.id === p_invoice_id);
+      if (!invoice) {
+        throw new Error('Invoice not found');
+      }
+      if (invoice.invoice_status !== 'Active') {
+        throw new Error('Invoice is not active or already cancelled.');
+      }
+
+      invoice.invoice_status = 'Cancelled';
+      invoice.updated_at = new Date().toISOString();
+
+      if (!db.stock) db.stock = [];
+
+      // Find items
+      const items = db.invoice_items.filter(item => item.invoice_id === p_invoice_id);
+      for (const item of items) {
+        const prodId = item.product_id;
+        let stockRecord = db.stock.find(s => s.product_id === prodId);
+        if (!stockRecord) {
+          stockRecord = { product_id: prodId, quantity_available: 0, last_updated: new Date().toISOString() };
+          db.stock.push(stockRecord);
+        }
+        stockRecord.quantity_available += item.qty;
+        stockRecord.last_updated = new Date().toISOString();
+      }
+
+      saveMockDb(db);
+      return true;
+    }
+
+    if (functionName === 'create_purchase_transaction') {
+      const purchasePayload = args.purchase_payload || {};
+      const itemsPayload = args.items_payload || [];
+
+      const purchaseId = purchasePayload.id || require('crypto').randomUUID();
+
+      const newPurchase = {
+        id: purchaseId,
+        supplier_id: purchasePayload.supplier_id,
+        purchase_date: purchasePayload.purchase_date,
+        invoice_ref: purchasePayload.invoice_ref,
+        total_amount: purchasePayload.total_amount,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      if (!db.purchases) db.purchases = [];
+      db.purchases.push(newPurchase);
+
+      if (!db.purchase_items) db.purchase_items = [];
+      if (!db.stock) db.stock = [];
+
+      for (const item of itemsPayload) {
+        db.purchase_items.push({
+          id: require('crypto').randomUUID(),
+          purchase_id: purchaseId,
+          product_id: item.product_id,
+          qty: item.qty,
+          rate: item.rate,
+          amount: item.amount,
+          created_at: new Date().toISOString()
+        });
+
+        // Increment stock
+        const prodId = item.product_id;
+        let stockRecord = db.stock.find(s => s.product_id === prodId);
+        if (!stockRecord) {
+          stockRecord = { product_id: prodId, quantity_available: 0, last_updated: new Date().toISOString() };
+          db.stock.push(stockRecord);
+        }
+        stockRecord.quantity_available += item.qty;
+        stockRecord.last_updated = new Date().toISOString();
+      }
+
+      saveMockDb(db);
+      return purchaseId;
     }
 
     throw new Error(`Unsupported Mock RPC function: ${functionName}`);
@@ -260,9 +373,11 @@ class Database {
     switch (action) {
       case 'select':
         if (payload && payload.id) {
-          const item = db[table].find(i => i.id === payload.id);
+          // Special primary key lookup for stock (product_id instead of id)
+          const pkField = table === 'stock' ? 'product_id' : 'id';
+          const item = db[table].find(i => i[pkField] === payload.id);
           if (!item) {
-            const error = new Error(`Record with id ${payload.id} not found in mock ${table}`);
+            const error = new Error(`Record with pk ${payload.id} not found in mock ${table}`);
             error.status = 404;
             throw error;
           }
@@ -300,12 +415,12 @@ class Database {
 
         // Auto-create stock entry for new product
         if (table === 'products') {
-          if (!db.stock) db.stock = {};
-          db.stock[newRecord.id] = {
+          if (!db.stock) db.stock = [];
+          db.stock.push({
             product_id: newRecord.id,
             quantity_available: 0.000,
             last_updated: new Date().toISOString()
-          };
+          });
         }
 
         saveMockDb(db);
@@ -313,7 +428,8 @@ class Database {
       }
 
       case 'update': {
-        const index = db[table].findIndex(i => i.id === payload.id);
+        const pkField = table === 'stock' ? 'product_id' : 'id';
+        const index = db[table].findIndex(i => i[pkField] === payload.id);
         if (index === -1) {
           const error = new Error(`Record with id ${payload.id} not found in mock ${table}`);
           error.status = 404;
@@ -330,7 +446,8 @@ class Database {
       }
 
       case 'delete': {
-        const index = db[table].findIndex(i => i.id === payload.id);
+        const pkField = table === 'stock' ? 'product_id' : 'id';
+        const index = db[table].findIndex(i => i[pkField] === payload.id);
         if (index === -1) {
           const error = new Error(`Record with id ${payload.id} not found in mock ${table}`);
           error.status = 404;

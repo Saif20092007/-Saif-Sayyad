@@ -9,7 +9,6 @@
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    /* Prevent layout shifting during module loading */
     [v-cloak] { display: none; }
   </style>
 </head>
@@ -85,7 +84,7 @@
           <span>Dashboard</span>
         </button>
 
-        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mt-6 mb-2">Master Records</p>
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mt-4 mb-2">Master Records</p>
         <button onclick="switchTab('company')" id="btn-company" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition">
           <i class="fa-solid fa-building w-5 text-indigo-500"></i>
           <span>Company Profile</span>
@@ -103,13 +102,28 @@
           <span>Products & Stock</span>
         </button>
 
-        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mt-6 mb-2">Transactions (Later)</p>
-        <div class="text-xs text-slate-400 px-3 italic">Locked in Session 1</div>
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mt-4 mb-2">Transactions</p>
+        <button onclick="switchTab('invoices')" id="btn-invoices" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition">
+          <i class="fa-solid fa-file-invoice w-5 text-indigo-500"></i>
+          <span>Invoices</span>
+        </button>
+        <button onclick="switchTab('purchases')" id="btn-purchases" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition">
+          <i class="fa-solid fa-cart-shopping w-5 text-indigo-500"></i>
+          <span>Purchases Receipt</span>
+        </button>
+        <button onclick="switchTab('ledger')" id="btn-ledger" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition">
+          <i class="fa-solid fa-book-open w-5 text-indigo-500"></i>
+          <span>Customer Ledger</span>
+        </button>
+        <button onclick="switchTab('reports')" id="btn-reports" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition">
+          <i class="fa-solid fa-chart-line w-5 text-indigo-500"></i>
+          <span>GST & Sales Reports</span>
+        </button>
 
-        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mt-6 mb-2">System Control</p>
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mt-4 mb-2">System Control</p>
         <button onclick="switchTab('settings')" id="btn-settings" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition">
           <i class="fa-solid fa-gears w-5 text-indigo-500"></i>
-          <span>Settings & Logs</span>
+          <span>Settings & Backups</span>
         </button>
       </aside>
 
@@ -119,28 +133,35 @@
         <!-- DASHBOARD TAB -->
         <div id="tab-dashboard" class="tab-content space-y-6">
           <h1 class="text-2xl font-bold text-slate-800">Welcome to SS Plastotech ERP</h1>
-          <p class="text-slate-500">Manage your business profile, suppliers, products, customers, and monitor activity security logs.</p>
+          <p class="text-slate-500">Manage invoices, record payments, track supplier purchases, and run professional tax exports.</p>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-            <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100 flex items-center space-x-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+            <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-100 flex items-center space-x-4">
               <div class="p-3 bg-indigo-500 text-white rounded-lg"><i class="fa-solid fa-users text-xl"></i></div>
               <div>
-                <p class="text-sm text-slate-500 font-medium">Total Customers</p>
-                <h3 class="text-2xl font-bold text-indigo-900" id="dash-customers-count">0</h3>
+                <p class="text-xs text-slate-500 font-medium">Customers</p>
+                <h3 class="text-xl font-bold text-indigo-900" id="dash-customers-count">0</h3>
               </div>
             </div>
-            <div class="bg-emerald-50 p-6 rounded-xl border border-emerald-100 flex items-center space-x-4">
+            <div class="bg-emerald-50 p-5 rounded-xl border border-emerald-100 flex items-center space-x-4">
               <div class="p-3 bg-emerald-500 text-white rounded-lg"><i class="fa-solid fa-truck text-xl"></i></div>
               <div>
-                <p class="text-sm text-slate-500 font-medium">Total Suppliers</p>
-                <h3 class="text-2xl font-bold text-emerald-900" id="dash-suppliers-count">0</h3>
+                <p class="text-xs text-slate-500 font-medium">Suppliers</p>
+                <h3 class="text-xl font-bold text-emerald-900" id="dash-suppliers-count">0</h3>
               </div>
             </div>
-            <div class="bg-amber-50 p-6 rounded-xl border border-amber-100 flex items-center space-x-4">
+            <div class="bg-amber-50 p-5 rounded-xl border border-amber-100 flex items-center space-x-4">
               <div class="p-3 bg-amber-500 text-white rounded-lg"><i class="fa-solid fa-boxes-stacked text-xl"></i></div>
               <div>
-                <p class="text-sm text-slate-500 font-medium">Product Catalog</p>
-                <h3 class="text-2xl font-bold text-amber-900" id="dash-products-count">0</h3>
+                <p class="text-xs text-slate-500 font-medium">Catalog Products</p>
+                <h3 class="text-xl font-bold text-amber-900" id="dash-products-count">0</h3>
+              </div>
+            </div>
+            <div class="bg-rose-50 p-5 rounded-xl border border-rose-100 flex items-center space-x-4">
+              <div class="p-3 bg-rose-500 text-white rounded-lg"><i class="fa-solid fa-indian-rupee-sign text-xl"></i></div>
+              <div>
+                <p class="text-xs text-slate-500 font-medium">Outstanding Balances</p>
+                <h3 class="text-xl font-bold text-rose-900" id="dash-outstanding-balance">₹0.00</h3>
               </div>
             </div>
           </div>
@@ -150,7 +171,7 @@
         <div id="tab-company" class="tab-content hidden space-y-6">
           <div class="flex justify-between items-center border-b pb-4">
             <h2 class="text-2xl font-bold text-slate-800">Company Profile</h2>
-            <p class="text-sm text-slate-500">Configure your business metadata for invoices & layout layouts</p>
+            <p class="text-sm text-slate-500">Configure your business metadata for invoices & layouts</p>
           </div>
           <form id="company-form" class="space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -238,11 +259,10 @@
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">GSTIN</th>
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Phone</th>
                   <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Email</th>
-                  <th class="px-6 py-3.5 class text-right text-xs font-bold text-slate-500 uppercase">Actions</th>
+                  <th class="px-6 py-3.5 text-right text-xs font-bold text-slate-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody id="customers-list" class="divide-y divide-slate-200 bg-white">
-                <!-- Loaded dynamically -->
               </tbody>
             </table>
           </div>
@@ -269,7 +289,6 @@
                 </tr>
               </thead>
               <tbody id="suppliers-list" class="divide-y divide-slate-200 bg-white">
-                <!-- Loaded dynamically -->
               </tbody>
             </table>
           </div>
@@ -297,9 +316,211 @@
                 </tr>
               </thead>
               <tbody id="products-list" class="divide-y divide-slate-200 bg-white">
-                <!-- Loaded dynamically -->
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- INVOICES TAB -->
+        <div id="tab-invoices" class="tab-content hidden space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <h2 class="text-2xl font-bold text-slate-800">Sales Invoices & Billing</h2>
+            <button onclick="openInvoiceCreateModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-file-invoice"></i>
+              <span>Create Invoice</span>
+            </button>
+          </div>
+
+          <!-- Search / Filters -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase">Invoice No</label>
+              <input type="text" id="filter-invoice-no" oninput="applyInvoiceFilters()" placeholder="Search Invoice No" class="mt-1 w-full rounded border p-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase">Customer Name</label>
+              <input type="text" id="filter-customer" oninput="applyInvoiceFilters()" placeholder="Search Customer" class="mt-1 w-full rounded border p-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase">PO Number</label>
+              <input type="text" id="filter-po-number" oninput="applyInvoiceFilters()" placeholder="Search PO Number" class="mt-1 w-full rounded border p-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase">Status</label>
+              <select id="filter-status" onchange="applyInvoiceFilters()" class="mt-1 w-full rounded border p-2 text-sm">
+                <option value="">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Invoice No</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Date</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Customer</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Grand Total</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Pay Status</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Inv Status</th>
+                  <th class="px-6 py-3.5 text-right text-xs font-bold text-slate-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="invoices-list" class="divide-y divide-slate-200 bg-white">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PURCHASES TAB -->
+        <div id="tab-purchases" class="tab-content hidden space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <h2 class="text-2xl font-bold text-slate-800">Purchases Ledger & Stock Receipts</h2>
+            <button onclick="openPurchaseCreateModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-cart-flatbed"></i>
+              <span>Record Purchase Receipt</span>
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Date</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Supplier</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Invoice Ref</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Total Amount</th>
+                  <th class="px-6 py-3.5 text-right text-xs font-bold text-slate-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="purchases-list" class="divide-y divide-slate-200 bg-white">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- CUSTOMER LEDGER TAB -->
+        <div id="tab-ledger" class="tab-content hidden space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <h2 class="text-2xl font-bold text-slate-800">Customer Statement / Ledger</h2>
+          </div>
+          <div class="flex space-x-4 items-end bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div class="flex-1">
+              <label class="block text-sm font-semibold text-slate-700">Select Customer *</label>
+              <select id="ledger-customer-select" class="mt-1 w-full rounded border p-2.5 text-sm">
+              </select>
+            </div>
+            <button onclick="loadCustomerLedger()" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-6 rounded font-semibold text-sm h-fit">
+              Fetch Ledger Statement
+            </button>
+          </div>
+
+          <!-- Summary Cards -->
+          <div id="ledger-summary" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-100">
+              <p class="text-xs text-slate-500 font-medium">Total Billed</p>
+              <h4 class="text-xl font-bold text-indigo-900 font-mono" id="ledger-total-billed">₹0.00</h4>
+            </div>
+            <div class="bg-emerald-50 p-5 rounded-xl border border-emerald-100">
+              <p class="text-xs text-slate-500 font-medium">Total Paid</p>
+              <h4 class="text-xl font-bold text-emerald-900 font-mono" id="ledger-total-paid">₹0.00</h4>
+            </div>
+            <div class="bg-rose-50 p-5 rounded-xl border border-rose-100">
+              <p class="text-xs text-slate-500 font-medium">Net Outstanding Balance</p>
+              <h4 class="text-xl font-bold text-rose-900 font-mono" id="ledger-net-outstanding">₹0.00</h4>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Date</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Doc Type</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Reference</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Debit (₹)</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Credit (₹)</th>
+                  <th class="px-6 py-3.5 text-left text-xs font-bold text-slate-500 uppercase">Running Balance</th>
+                </tr>
+              </thead>
+              <tbody id="ledger-transactions-list" class="divide-y divide-slate-200 bg-white">
+                <tr><td colspan="6" class="text-center py-8 text-slate-400">Select a customer above to generate a statement.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- REPORTS TAB -->
+        <div id="tab-reports" class="tab-content hidden space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <h2 class="text-2xl font-bold text-slate-800">GST Monthly Summary & Excel Exports</h2>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div>
+              <label class="block text-sm font-semibold text-slate-700">Financial Year</label>
+              <select id="report-year" class="mt-1 w-full rounded border p-2.5 text-sm">
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700">Month</label>
+              <select id="report-month" class="mt-1 w-full rounded border p-2.5 text-sm">
+                <option value="04">April (04)</option>
+                <option value="05">May (05)</option>
+                <option value="06">June (06)</option>
+                <option value="07">July (07)</option>
+                <option value="08">August (08)</option>
+                <option value="09">September (09)</option>
+                <option value="10">October (10)</option>
+                <option value="11">November (11)</option>
+                <option value="12">December (12)</option>
+                <option value="01">January (01)</option>
+                <option value="02">February (02)</option>
+                <option value="03">March (03)</option>
+              </select>
+            </div>
+            <button onclick="loadGSTReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-6 rounded font-semibold text-sm">
+              Run GST Report
+            </button>
+          </div>
+
+          <!-- GST Summary Cards -->
+          <div id="reports-gst-summary" class="hidden grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <p class="text-xs text-slate-500 font-medium">Taxable Value</p>
+              <h4 class="text-lg font-bold font-mono text-slate-800" id="reports-taxable-total">₹0.00</h4>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <p class="text-xs text-slate-500 font-medium">CGST Total</p>
+              <h4 class="text-lg font-bold font-mono text-slate-800" id="reports-cgst-total">₹0.00</h4>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <p class="text-xs text-slate-500 font-medium">SGST Total</p>
+              <h4 class="text-lg font-bold font-mono text-slate-800" id="reports-sgst-total">₹0.00</h4>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <p class="text-xs text-slate-500 font-medium">IGST Total</p>
+              <h4 class="text-lg font-bold font-mono text-slate-800" id="reports-igst-total">₹0.00</h4>
+            </div>
+            <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200">
+              <p class="text-xs text-slate-500 font-medium">Grand Total</p>
+              <h4 class="text-lg font-bold font-mono text-indigo-900" id="reports-grand-total">₹0.00</h4>
+            </div>
+          </div>
+
+          <!-- Download Action Triggers -->
+          <div class="flex space-x-4 pt-4 border-t">
+            <button onclick="downloadGSTReportExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-6 rounded font-semibold text-sm flex items-center space-x-2">
+              <i class="fa-solid fa-file-excel"></i>
+              <span>Export GST Report to Excel</span>
+            </button>
+            <button onclick="downloadSalesExcel()" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-6 rounded font-semibold text-sm flex items-center space-x-2">
+              <i class="fa-solid fa-file-excel"></i>
+              <span>Export Complete Sales Ledger</span>
+            </button>
           </div>
         </div>
 
@@ -344,6 +565,28 @@
             </form>
           </div>
 
+          <!-- Backup Controls -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t pt-8">
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
+              <h3 class="text-lg font-bold text-slate-800">Backup Database</h3>
+              <p class="text-sm text-slate-500">Backup your entire database as a structured JSON file instantly.</p>
+              <button onclick="triggerManualBackup()" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-6 rounded font-semibold text-sm flex items-center space-x-2">
+                <i class="fa-solid fa-download"></i>
+                <span>Backup Now</span>
+              </button>
+            </div>
+
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
+              <h3 class="text-lg font-bold text-slate-800">Restore Database</h3>
+              <p class="text-sm text-slate-500">Select a previously exported SS Plastotech ERP backup file to restore database.</p>
+              <input type="file" id="restore-file-input" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+              <button onclick="triggerRestoreBackup()" class="bg-rose-600 hover:bg-rose-700 text-white py-2 px-6 rounded font-semibold text-sm flex items-center space-x-2">
+                <i class="fa-solid fa-upload"></i>
+                <span>Restore Backup File</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Audit Log List -->
           <div class="border-t pt-8">
             <h3 class="text-xl font-bold text-slate-800 mb-4">Security & Audit logs</h3>
@@ -358,7 +601,6 @@
                   </tr>
                 </thead>
                 <tbody id="audit-logs-list" class="divide-y divide-slate-200 bg-white">
-                  <!-- Loaded dynamically -->
                 </tbody>
               </table>
             </div>
@@ -480,6 +722,226 @@
           <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded">Save</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- CREATE INVOICE MODAL -->
+  <div id="invoice-create-modal" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div class="bg-white rounded-xl shadow-xl border w-full max-w-4xl p-6 space-y-4 my-8">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="text-xl font-bold text-slate-800">Create New Tax Invoice</h3>
+        <button onclick="closeInvoiceCreateModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <form id="invoice-create-form" onsubmit="handleInvoiceSave(event)" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700">Customer *</label>
+            <select name="customer_id" required class="mt-1 block w-full border rounded-md p-2 text-sm">
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700">Invoice Date *</label>
+            <input type="date" name="invoice_date" required class="mt-1 block w-full border rounded-md p-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700">PO Number</label>
+            <input type="text" name="po_number" class="mt-1 block w-full border rounded-md p-2 text-sm">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700">Place of Supply *</label>
+            <input type="text" name="place_of_supply" required value="Maharashtra" class="mt-1 block w-full border rounded-md p-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700">Tax Type *</label>
+            <select name="tax_type" onchange="recalculateInvoiceLines()" class="mt-1 block w-full border rounded-md p-2 text-sm">
+              <option value="CGST_SGST">CGST + SGST (Intrastate)</option>
+              <option value="IGST">IGST (Interstate)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700">Copy Type *</label>
+            <select name="copy_type" class="mt-1 block w-full border rounded-md p-2 text-sm">
+              <option value="Original">Original for Recipient</option>
+              <option value="Duplicate">Duplicate for Transporter</option>
+              <option value="Triplicate">Triplicate for Supplier</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700">Signature *</label>
+            <select name="signature_mode" class="mt-1 block w-full border rounded-md p-2 text-sm">
+              <option value="online">Online (Apply Digital Sig)</option>
+              <option value="physical">Physical (Blank for Stamp)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Line Items Section -->
+        <div class="border-t pt-4">
+          <div class="flex justify-between items-center mb-3">
+            <h4 class="text-sm font-bold uppercase text-slate-500">Invoice Line Items</h4>
+            <button type="button" onclick="addInvoiceLineRow()" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-semibold py-1 px-3 rounded text-xs flex items-center space-x-1">
+              <i class="fa-solid fa-plus"></i>
+              <span>Add Item Line</span>
+            </button>
+          </div>
+
+          <div class="overflow-x-auto border rounded-lg">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase">Product Description</th>
+                  <th class="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase w-24">Qty</th>
+                  <th class="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase w-32">Rate (₹)</th>
+                  <th class="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase w-32">Line Total</th>
+                  <th class="px-4 py-2 text-right text-xs font-bold text-slate-500 uppercase w-16">Remove</th>
+                </tr>
+              </thead>
+              <tbody id="invoice-lines-body">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Summary section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border">
+          <div class="text-xs text-slate-500 space-y-1">
+            <p><strong>Note:</strong> Items stock availability is verified atomically upon saving.</p>
+            <p><strong>Calculations:</strong> CGST/SGST/IGST tax splits and grand total rounding are performed strictly to Indian tax regulations.</p>
+          </div>
+          <div class="space-y-1.5 text-right font-mono text-sm text-slate-700">
+            <div>Taxable Value: <span id="create-taxable-val">₹0.00</span></div>
+            <div>GST Total: <span id="create-gst-val">₹0.00</span></div>
+            <div>Round Off: <span id="create-round-val">₹0.00</span></div>
+            <div class="text-lg font-bold text-indigo-700">Grand Total: <span id="create-grand-val">₹0.00</span></div>
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 border-t pt-4">
+          <button type="button" onclick="closeInvoiceCreateModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 px-6 rounded font-semibold text-sm">Cancel</button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-6 rounded font-semibold text-sm">Save & Finalize Invoice</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- RECORD PAYMENT MODAL -->
+  <div id="payment-record-modal" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-xl border w-full max-w-md p-6 space-y-4">
+      <h3 class="text-lg font-bold text-slate-800">Record Customer Payment</h3>
+      <form id="payment-record-form" onsubmit="handlePaymentSave(event)" class="space-y-4">
+        <input type="hidden" name="invoice_id">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700">Customer</label>
+          <input type="text" id="payment-customer-name" readonly class="mt-1 block w-full border bg-slate-100 rounded p-2 text-sm font-semibold">
+          <input type="hidden" name="customer_id">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-700">Invoice No Reference</label>
+          <input type="text" id="payment-invoice-no" readonly class="mt-1 block w-full border bg-slate-100 rounded p-2 text-sm font-semibold font-mono">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-700">Payment Date *</label>
+          <input type="date" name="payment_date" required class="mt-1 block w-full border rounded p-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-700">Payment Amount (₹) *</label>
+          <input type="number" step="0.01" name="amount" required class="mt-1 block w-full border rounded p-2 text-sm font-mono">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-700">Payment Mode *</label>
+          <select name="mode" required class="mt-1 block w-full border rounded p-2 text-sm">
+            <option value="Bank Transfer (NEFT/RTGS)">Bank Transfer (NEFT/RTGS)</option>
+            <option value="UPI / QR Code">UPI / QR Code</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Cash">Cash</option>
+          </select>
+        </div>
+        <div class="flex justify-end space-x-3 pt-2 border-t">
+          <button type="button" onclick="closePaymentRecordModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-4 rounded">Cancel</button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded font-semibold text-sm">Record Receipt</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CREATE PURCHASE MODAL -->
+  <div id="purchase-create-modal" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div class="bg-white rounded-xl shadow-xl border w-full max-w-3xl p-6 space-y-4 my-8">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="text-xl font-bold text-slate-800">Record Purchase Receipt</h3>
+        <button onclick="closePurchaseCreateModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <form id="purchase-create-form" onsubmit="handlePurchaseSave(event)" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700">Supplier *</label>
+            <select name="supplier_id" required class="mt-1 block w-full border rounded-md p-2 text-sm">
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700">Purchase Date *</label>
+            <input type="date" name="purchase_date" required class="mt-1 block w-full border rounded-md p-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700">Supplier Invoice Ref *</label>
+            <input type="text" name="invoice_ref" required class="mt-1 block w-full border rounded-md p-2 text-sm">
+          </div>
+        </div>
+
+        <!-- Line Items Section -->
+        <div class="border-t pt-4">
+          <div class="flex justify-between items-center mb-3">
+            <h4 class="text-sm font-bold uppercase text-slate-500">Purchase Items (Increments stock level)</h4>
+            <button type="button" onclick="addPurchaseLineRow()" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-semibold py-1 px-3 rounded text-xs flex items-center space-x-1">
+              <i class="fa-solid fa-plus"></i>
+              <span>Add Product Line</span>
+            </button>
+          </div>
+
+          <div class="overflow-x-auto border rounded-lg">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase">Product Name</th>
+                  <th class="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase w-28">Qty</th>
+                  <th class="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase w-32">Rate (₹)</th>
+                  <th class="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase w-32">Total Amount</th>
+                  <th class="px-4 py-2 text-right text-xs font-bold text-slate-500 uppercase w-16">Remove</th>
+                </tr>
+              </thead>
+              <tbody id="purchase-lines-body">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="text-right text-lg font-bold text-indigo-700 bg-slate-50 p-4 rounded-lg border font-mono">
+          Purchase Total: <span id="create-purchase-total">₹0.00</span>
+        </div>
+
+        <div class="flex justify-end space-x-3 border-t pt-4">
+          <button type="button" onclick="closePurchaseCreateModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 px-6 rounded font-semibold text-sm">Cancel</button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-6 rounded font-semibold text-sm">Record Purchase Receipt</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- PDF VIEWER MODAL -->
+  <div id="pdf-view-modal" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-xl border w-full max-w-5xl h-[90vh] flex flex-col p-4">
+      <div class="flex justify-between items-center border-b pb-2 mb-2">
+        <h3 class="text-lg font-bold text-slate-800">Print / Reprint Tax Invoice Document</h3>
+        <button onclick="closePdfViewModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+      <div class="flex-1 bg-slate-100 rounded border overflow-hidden">
+        <iframe id="pdf-viewer-iframe" class="w-full h-full" src=""></iframe>
+      </div>
     </div>
   </div>
 

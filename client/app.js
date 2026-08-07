@@ -8,11 +8,17 @@ let inactivityTimer = null;
 let lastActiveTime = Date.now();
 let TIMEOUT_MINUTES = 60;
 
+// Global state lookups for rapid UI conversions
+let customersListGlobal = [];
+let suppliersListGlobal = [];
+let productsListGlobal = [];
+let invoiceListGlobal = [];
+
 // Initialize Page Load
 document.addEventListener('DOMContentLoaded', () => {
   setupApp();
 
-  // Listeners for dynamic inputs
+  // Listeners for forms
   document.getElementById('login-form').addEventListener('submit', handleLogin);
   document.getElementById('company-form').addEventListener('submit', handleCompanySave);
   document.getElementById('customer-modal-form').addEventListener('submit', handleCustomerSave);
@@ -44,7 +50,7 @@ function setupApp() {
   }
 }
 
-// Fetch generic helper
+// Fetch generic helper with headers & token refreshing
 async function apiFetch(endpoint, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
@@ -62,6 +68,15 @@ async function apiFetch(endpoint, options = {}) {
     token = refreshToken;
     localStorage.setItem('token', token);
     lastActiveTime = Date.now(); // Reset inactive timer on successful authenticated transaction
+  }
+
+  // Handle file downloads
+  const contentType = res.headers.get('content-type');
+  if (res.ok && contentType && contentType.includes('application/vnd.openxmlformats-officedocument')) {
+    return res.blob();
+  }
+  if (res.ok && contentType && contentType.includes('application/json') && res.headers.get('content-disposition')) {
+    return res.blob();
   }
 
   const data = await res.json();
@@ -138,6 +153,10 @@ async function switchTab(tabId) {
   if (tabId === 'customers') loadCustomers();
   if (tabId === 'suppliers') loadSuppliers();
   if (tabId === 'products') loadProducts();
+  if (tabId === 'invoices') loadInvoices();
+  if (tabId === 'purchases') loadPurchases();
+  if (tabId === 'ledger') loadLedgerScreen();
+  if (tabId === 'reports') loadReportsScreen();
   if (tabId === 'settings') loadSettingsAndLogs();
 }
 
@@ -175,14 +194,32 @@ function resetClientTimer() {
 // Dynamic dashboard counters loading
 async function loadDashboard() {
   try {
-    const [c, s, p] = await Promise.all([
+    const [c, s, p, invoicesData] = await Promise.all([
       apiFetch('/customers'),
       apiFetch('/suppliers'),
-      apiFetch('/products')
+      apiFetch('/products'),
+      apiFetch('/invoices')
     ]);
+
+    customersListGlobal = c.data;
+    suppliersListGlobal = s.data;
+    productsListGlobal = p.data;
+    invoiceListGlobal = invoicesData.data;
+
     document.getElementById('dash-customers-count').textContent = c.data.length;
     document.getElementById('dash-suppliers-count').textContent = s.data.length;
     document.getElementById('dash-products-count').textContent = p.data.length;
+
+    // Calculate Outstanding Balances across all active invoices
+    // Let's retrieve all payments to subtract
+    const paymentsData = await apiFetch('/payments');
+
+    const activeInvoices = invoicesData.data.filter(i => i.invoice_status !== 'Cancelled');
+    const totalBilled = activeInvoices.reduce((sum, i) => sum + Number(i.grand_total), 0);
+    const totalPaid = paymentsData.data.reduce((sum, p) => sum + Number(p.amount), 0);
+
+    const netOutstanding = Math.max(0, totalBilled - totalPaid);
+    document.getElementById('dash-outstanding-balance').textContent = `₹${netOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   } catch (err) {
     console.error(err);
   }
@@ -245,6 +282,7 @@ async function handleCompanySave(e) {
 async function loadCustomers() {
   try {
     const res = await apiFetch('/customers');
+    customersListGlobal = res.data;
     const list = document.getElementById('customers-list');
     list.innerHTML = res.data.map(c => `
       <tr class="hover:bg-slate-50 transition">
@@ -333,6 +371,7 @@ async function deleteCustomer(id) {
 async function loadSuppliers() {
   try {
     const res = await apiFetch('/suppliers');
+    suppliersListGlobal = res.data;
     const list = document.getElementById('suppliers-list');
     list.innerHTML = res.data.map(s => `
       <tr class="hover:bg-slate-50 transition">
@@ -419,6 +458,7 @@ async function deleteSupplier(id) {
 async function loadProducts() {
   try {
     const res = await apiFetch('/products');
+    productsListGlobal = res.data;
     const list = document.getElementById('products-list');
     list.innerHTML = res.data.map(p => `
       <tr class="hover:bg-slate-50 transition">
@@ -500,6 +540,636 @@ async function deleteProduct(id) {
   } catch (err) {
     showToast(err.message, 'circle-xmark');
   }
+}
+
+// INVOICES & BILLING
+async function loadInvoices() {
+  try {
+    const res = await apiFetch('/invoices');
+    invoiceListGlobal = res.data;
+    renderInvoicesTable(res.data);
+
+    // Fetch master customers & products to populate modal dropdowns
+    const [custRes, prodRes] = await Promise.all([
+      apiFetch('/customers'),
+      apiFetch('/products')
+    ]);
+    customersListGlobal = custRes.data;
+    productsListGlobal = prodRes.data;
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+function renderInvoicesTable(invoices) {
+  const list = document.getElementById('invoices-list');
+  list.innerHTML = invoices.map(i => {
+    const isCancelled = i.invoice_status === 'Cancelled';
+    const statusClass = isCancelled ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
+    const payStatusClass = i.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-800' :
+                           i.payment_status === 'Partially Paid' ? 'bg-yellow-100 text-yellow-800' :
+                           'bg-slate-100 text-slate-800';
+
+    return `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="px-6 py-4 font-bold font-mono text-indigo-700 text-sm">${escapeHTML(i.invoice_no)}</td>
+        <td class="px-6 py-4 font-mono text-xs">${new Date(i.invoice_date).toLocaleDateString('en-GB')}</td>
+        <td class="px-6 py-4 font-semibold text-slate-800 text-xs">${escapeHTML(i.snapshot_customer_name)}</td>
+        <td class="px-6 py-4 font-mono font-semibold text-xs">₹${Number(i.grand_total).toFixed(2)}</td>
+        <td class="px-6 py-4 text-xs"><span class="${payStatusClass} px-2 py-1 rounded font-bold">${escapeHTML(i.payment_status)}</span></td>
+        <td class="px-6 py-4 text-xs"><span class="${statusClass} px-2 py-1 rounded font-bold">${escapeHTML(i.invoice_status)}</span></td>
+        <td class="px-6 py-4 text-right space-x-2 text-xs font-semibold">
+          <button onclick="viewInvoicePDF('${i.id}')" class="text-indigo-600 hover:text-indigo-900">View PDF</button>
+          ${!isCancelled ? `
+            <button onclick="openPaymentRecordModal('${i.id}')" class="text-emerald-600 hover:text-emerald-900">Payment</button>
+            <button onclick="emailInvoice('${i.id}')" class="text-amber-600 hover:text-amber-900">Email</button>
+            <button onclick="cancelInvoice('${i.id}')" class="text-red-600 hover:text-red-900">Cancel</button>
+          ` : ''}
+        </td>
+      </tr>
+    `;
+  }).join('') || `<tr><td colspan="7" class="text-center py-8 text-slate-400">No invoices match your selection.</td></tr>`;
+}
+
+function applyInvoiceFilters() {
+  const invNoVal = document.getElementById('filter-invoice-no').value.toLowerCase();
+  const custVal = document.getElementById('filter-customer').value.toLowerCase();
+  const poVal = document.getElementById('filter-po-number').value.toLowerCase();
+  const statusVal = document.getElementById('filter-status').value;
+
+  const filtered = invoiceListGlobal.filter(i => {
+    const matchesInv = i.invoice_no.toLowerCase().includes(invNoVal);
+    const matchesCust = i.snapshot_customer_name.toLowerCase().includes(custVal);
+    const matchesPo = (i.po_number || '').toLowerCase().includes(poVal);
+    const matchesStatus = statusVal === '' || i.invoice_status === statusVal;
+    return matchesInv && matchesCust && matchesPo && matchesStatus;
+  });
+
+  renderInvoicesTable(filtered);
+}
+
+// Create Invoice
+function openInvoiceCreateModal() {
+  const modal = document.getElementById('invoice-create-modal');
+  const form = document.getElementById('invoice-create-form');
+  form.reset();
+
+  // Pre-populate customer dropdown
+  const custSelect = form.customer_id;
+  custSelect.innerHTML = '<option value="">-- Choose Customer --</option>' +
+    customersListGlobal.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('');
+
+  // Set default date to today
+  form.invoice_date.value = new Date().toISOString().split('T')[0];
+
+  document.getElementById('invoice-lines-body').innerHTML = '';
+  addInvoiceLineRow(); // Add initial blank row
+
+  recalculateInvoiceLines();
+  modal.classList.remove('hidden');
+}
+
+function closeInvoiceCreateModal() {
+  document.getElementById('invoice-create-modal').classList.add('hidden');
+}
+
+function addInvoiceLineRow() {
+  const body = document.getElementById('invoice-lines-body');
+  const rowCount = body.children.length;
+
+  const row = document.createElement('tr');
+  row.className = 'invoice-line-row';
+  row.innerHTML = `
+    <td class="p-2">
+      <select name="product_id" onchange="handleProductSelectChange(this)" required class="w-full border rounded p-1 text-sm">
+        <option value="">-- Select Product --</option>
+        ${productsListGlobal.map(p => `<option value="${p.id}">${escapeHTML(p.name)}</option>`).join('')}
+      </select>
+    </td>
+    <td class="p-2">
+      <input type="number" name="qty" required value="1" min="1" step="1" oninput="recalculateInvoiceLines()" class="w-full border rounded p-1 text-sm font-mono">
+    </td>
+    <td class="p-2">
+      <input type="number" name="rate" required value="0.00" min="0" step="0.01" oninput="recalculateInvoiceLines()" class="w-full border rounded p-1 text-sm font-mono">
+    </td>
+    <td class="p-2 font-mono text-sm font-bold text-slate-700 py-4" name="line_total">
+      ₹0.00
+    </td>
+    <td class="p-2 text-right">
+      <button type="button" onclick="removeInvoiceLineRow(this)" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash-can"></i></button>
+    </td>
+  `;
+  body.appendChild(row);
+  recalculateInvoiceLines();
+}
+
+function removeInvoiceLineRow(btn) {
+  const row = btn.closest('tr');
+  row.remove();
+  recalculateInvoiceLines();
+}
+
+function handleProductSelectChange(select) {
+  const prodId = select.value;
+  const row = select.closest('tr');
+  if (prodId) {
+    const product = productsListGlobal.find(p => p.id === prodId);
+    if (product) {
+      row.querySelector('input[name="rate"]').value = product.default_rate;
+    }
+  }
+  recalculateInvoiceLines();
+}
+
+function recalculateInvoiceLines() {
+  const rows = document.querySelectorAll('.invoice-line-row');
+  const taxType = document.querySelector('select[name="tax_type"]').value;
+
+  let taxableTotal = 0;
+  let gstTotal = 0;
+
+  rows.forEach(row => {
+    const prodId = row.querySelector('select[name="product_id"]').value;
+    const qty = Number(row.querySelector('input[name="qty"]').value) || 0;
+    const rate = Number(row.querySelector('input[name="rate"]').value) || 0;
+
+    let lineTotalVal = qty * rate;
+    row.querySelector('td[name="line_total"]').textContent = `₹${lineTotalVal.toFixed(2)}`;
+
+    if (prodId) {
+      const product = productsListGlobal.find(p => p.id === prodId);
+      if (product) {
+        const gstPercent = Number(product.gst_percent) || 18;
+        const lineGst = lineTotalVal * (gstPercent / 100);
+        taxableTotal += lineTotalVal;
+        gstTotal += lineGst;
+      }
+    }
+  });
+
+  const grandRaw = taxableTotal + gstTotal;
+  const grandRounded = Math.round(grandRaw);
+  const roundOff = grandRounded - grandRaw;
+
+  document.getElementById('create-taxable-val').textContent = `₹${taxableTotal.toFixed(2)}`;
+  document.getElementById('create-gst-val').textContent = `₹${gstTotal.toFixed(2)}`;
+  document.getElementById('create-round-val').textContent = `${roundOff >= 0 ? '+' : ''}${roundOff.toFixed(2)}`;
+  document.getElementById('create-grand-val').textContent = `₹${grandRounded.toFixed(2)}`;
+}
+
+async function handleInvoiceSave(e) {
+  e.preventDefault();
+  const form = e.target;
+
+  const items = [];
+  const rows = document.querySelectorAll('.invoice-line-row');
+  rows.forEach(row => {
+    const product_id = row.querySelector('select[name="product_id"]').value;
+    const qty = Number(row.querySelector('input[name="qty"]').value);
+    const rate = Number(row.querySelector('input[name="rate"]').value);
+    if (product_id) {
+      items.push({ product_id, qty, rate });
+    }
+  });
+
+  if (items.length === 0) {
+    showToast('Please add at least one line item product.', 'exclamation-triangle');
+    return;
+  }
+
+  const payload = {
+    customer_id: form.customer_id.value,
+    invoice_date: form.invoice_date.value,
+    po_number: form.po_number.value || null,
+    place_of_supply: form.place_of_supply.value,
+    tax_type: form.tax_type.value,
+    copy_type: form.copy_type.value,
+    signature_mode: form.signature_mode.value,
+    items
+  };
+
+  try {
+    await apiFetch('/invoices', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    showToast('Invoice saved & finalized successfully!');
+    closeInvoiceCreateModal();
+    loadInvoices();
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+// Payment Recording Modal
+function openPaymentRecordModal(invoiceId) {
+  const modal = document.getElementById('payment-record-modal');
+  const form = document.getElementById('payment-record-form');
+  form.reset();
+
+  const invoice = invoiceListGlobal.find(i => i.id === invoiceId);
+  if (!invoice) return;
+
+  form.invoice_id.value = invoiceId;
+  form.customer_id.value = invoice.customer_id;
+  form.payment_date.value = new Date().toISOString().split('T')[0];
+
+  document.getElementById('payment-customer-name').value = invoice.snapshot_customer_name;
+  document.getElementById('payment-invoice-no').value = invoice.invoice_no;
+
+  // Set default payment amount to invoice grand total
+  form.amount.value = invoice.grand_total;
+
+  modal.classList.remove('hidden');
+}
+
+function closePaymentRecordModal() {
+  document.getElementById('payment-record-modal').classList.add('hidden');
+}
+
+async function handlePaymentSave(e) {
+  e.preventDefault();
+  const form = e.target;
+  const payload = {
+    customer_id: form.customer_id.value,
+    invoice_id: form.invoice_id.value || null,
+    payment_date: form.payment_date.value,
+    amount: Number(form.amount.value),
+    mode: form.mode.value
+  };
+
+  try {
+    await apiFetch('/payments', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    showToast('Receipt recorded & invoice payment tracking updated!');
+    closePaymentRecordModal();
+    loadInvoices();
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+// Reprint PDF View modal
+async function viewInvoicePDF(id) {
+  try {
+    const res = await apiFetch(`/invoices/${id}/pdf`);
+    let url = res.pdf_url;
+    if (!url || res.pdf_generation_status !== 'success') {
+      // Synchronously trigger generation
+      const regenRes = await apiFetch(`/invoices/${id}/regenerate-pdf`, { method: 'POST' });
+      url = regenRes.pdf_url;
+    }
+
+    const modal = document.getElementById('pdf-view-modal');
+    const iframe = document.getElementById('pdf-viewer-iframe');
+    iframe.src = url;
+    modal.classList.remove('hidden');
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+function closePdfViewModal() {
+  document.getElementById('pdf-view-modal').classList.add('hidden');
+  document.getElementById('pdf-viewer-iframe').src = '';
+}
+
+async function cancelInvoice(id) {
+  if (!confirm('Are you sure you want to CANCEL this tax invoice? Stock quantities will be returned/restored automatically. This action cannot be undone.')) return;
+  try {
+    await apiFetch(`/invoices/${id}/cancel`, { method: 'PUT' });
+    showToast('Invoice cancelled and stock quantities restored!');
+    loadInvoices();
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+async function emailInvoice(id) {
+  showToast('Processing email dispatch...', 'envelope');
+  try {
+    const res = await apiFetch(`/invoices/${id}/email`, { method: 'POST' });
+    showToast(res.message);
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+// PURCHASES RECEIPT
+async function loadPurchases() {
+  try {
+    const res = await apiFetch('/purchases');
+    const list = document.getElementById('purchases-list');
+    list.innerHTML = res.data.map(p => `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="px-6 py-4 font-mono text-xs">${new Date(p.purchase_date).toLocaleDateString('en-GB')}</td>
+        <td class="px-6 py-4 font-semibold text-slate-800 text-sm">${escapeHTML(p.supplier_name)}</td>
+        <td class="px-6 py-4 font-mono font-semibold text-xs">${escapeHTML(p.invoice_ref)}</td>
+        <td class="px-6 py-4 font-mono font-semibold text-xs">₹${Number(p.total_amount).toFixed(2)}</td>
+        <td class="px-6 py-4 text-right">
+          <button onclick="viewPurchaseDetails('${p.id}')" class="text-indigo-600 hover:text-indigo-900 font-medium text-xs">View Details</button>
+        </td>
+      </tr>
+    `).join('') || `<tr><td colspan="5" class="text-center py-8 text-slate-400">No purchase entries recorded yet.</td></tr>`;
+
+    // Fetch master suppliers & products
+    const [supRes, prodRes] = await Promise.all([
+      apiFetch('/suppliers'),
+      apiFetch('/products')
+    ]);
+    suppliersListGlobal = supRes.data;
+    productsListGlobal = prodRes.data;
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+function openPurchaseCreateModal() {
+  const modal = document.getElementById('purchase-create-modal');
+  const form = document.getElementById('purchase-create-form');
+  form.reset();
+
+  const supSelect = form.supplier_id;
+  supSelect.innerHTML = '<option value="">-- Choose Supplier --</option>' +
+    suppliersListGlobal.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('');
+
+  form.purchase_date.value = new Date().toISOString().split('T')[0];
+
+  document.getElementById('purchase-lines-body').innerHTML = '';
+  addPurchaseLineRow();
+
+  recalculatePurchaseTotal();
+  modal.classList.remove('hidden');
+}
+
+function closePurchaseCreateModal() {
+  document.getElementById('purchase-create-modal').classList.add('hidden');
+}
+
+function addPurchaseLineRow() {
+  const body = document.getElementById('purchase-lines-body');
+  const row = document.createElement('tr');
+  row.className = 'purchase-line-row';
+  row.innerHTML = `
+    <td class="p-2">
+      <select name="product_id" onchange="handlePurchaseProductSelect(this)" required class="w-full border rounded p-1 text-sm">
+        <option value="">-- Select Product --</option>
+        ${productsListGlobal.map(p => `<option value="${p.id}">${escapeHTML(p.name)}</option>`).join('')}
+      </select>
+    </td>
+    <td class="p-2">
+      <input type="number" name="qty" required value="1" min="1" step="1" oninput="recalculatePurchaseTotal()" class="w-full border rounded p-1 text-sm font-mono">
+    </td>
+    <td class="p-2">
+      <input type="number" name="rate" required value="0.00" min="0" step="0.01" oninput="recalculatePurchaseTotal()" class="w-full border rounded p-1 text-sm font-mono">
+    </td>
+    <td class="p-2 font-mono text-sm font-bold text-slate-700 py-4" name="line_total">
+      ₹0.00
+    </td>
+    <td class="p-2 text-right">
+      <button type="button" onclick="removePurchaseLineRow(this)" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash-can"></i></button>
+    </td>
+  `;
+  body.appendChild(row);
+  recalculatePurchaseTotal();
+}
+
+function removePurchaseLineRow(btn) {
+  btn.closest('tr').remove();
+  recalculatePurchaseTotal();
+}
+
+function handlePurchaseProductSelect(select) {
+  const prodId = select.value;
+  const row = select.closest('tr');
+  if (prodId) {
+    const product = productsListGlobal.find(p => p.id === prodId);
+    if (product) {
+      row.querySelector('input[name="rate"]').value = product.default_rate;
+    }
+  }
+  recalculatePurchaseTotal();
+}
+
+function recalculatePurchaseTotal() {
+  const rows = document.querySelectorAll('.purchase-line-row');
+  let total = 0;
+
+  rows.forEach(row => {
+    const qty = Number(row.querySelector('input[name="qty"]').value) || 0;
+    const rate = Number(row.querySelector('input[name="rate"]').value) || 0;
+    const lineTotal = qty * rate;
+    row.querySelector('td[name="line_total"]').textContent = `₹${lineTotal.toFixed(2)}`;
+    total += lineTotal;
+  });
+
+  document.getElementById('create-purchase-total').textContent = `₹${total.toFixed(2)}`;
+}
+
+async function handlePurchaseSave(e) {
+  e.preventDefault();
+  const form = e.target;
+
+  const items = [];
+  const rows = document.querySelectorAll('.purchase-line-row');
+  rows.forEach(row => {
+    const product_id = row.querySelector('select[name="product_id"]').value;
+    const qty = Number(row.querySelector('input[name="qty"]').value);
+    const rate = Number(row.querySelector('input[name="rate"]').value);
+    if (product_id) {
+      items.push({ product_id, qty, rate });
+    }
+  });
+
+  if (items.length === 0) {
+    showToast('Please add at least one line item product.', 'exclamation-triangle');
+    return;
+  }
+
+  const payload = {
+    supplier_id: form.supplier_id.value,
+    purchase_date: form.purchase_date.value,
+    invoice_ref: form.invoice_ref.value,
+    items
+  };
+
+  try {
+    await apiFetch('/purchases', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    showToast('Purchase recorded successfully! Product stock increased.');
+    closePurchaseCreateModal();
+    loadPurchases();
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+async function viewPurchaseDetails(id) {
+  try {
+    const res = await apiFetch(`/purchases/${id}`);
+    const p = res.data;
+    const detailsHtml = p.items.map(it => `
+      ${escapeHTML(it.product_name)}: Qty ${it.qty} @ ₹${Number(it.rate).toFixed(2)} (Total: ₹${Number(it.amount).toFixed(2)})
+    `).join('\n');
+
+    alert(`Supplier Ref: ${p.invoice_ref}\nDate: ${new Date(p.purchase_date).toLocaleDateString('en-GB')}\nTotal: ₹${Number(p.total_amount).toFixed(2)}\n\nItems Recieved:\n${detailsHtml}`);
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+// CUSTOMER LEDGER STATEMENT
+async function loadLedgerScreen() {
+  try {
+    const res = await apiFetch('/customers');
+    const select = document.getElementById('ledger-customer-select');
+    select.innerHTML = '<option value="">-- Choose Customer --</option>' +
+      res.data.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('');
+
+    document.getElementById('ledger-summary').classList.add('hidden');
+    document.getElementById('ledger-transactions-list').innerHTML = `
+      <tr><td colspan="6" class="text-center py-8 text-slate-400">Select a customer above to generate a statement.</td></tr>
+    `;
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+async function loadCustomerLedger() {
+  const customerId = document.getElementById('ledger-customer-select').value;
+  if (!customerId) {
+    showToast('Please select a customer first.', 'exclamation-triangle');
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`/ledger/${customerId}`);
+    const ledger = res.data;
+
+    // Show summary cards
+    document.getElementById('ledger-summary').classList.remove('hidden');
+    document.getElementById('ledger-total-billed').textContent = `₹${ledger.summary.total_invoiced.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById('ledger-total-paid').textContent = `₹${ledger.summary.total_paid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById('ledger-net-outstanding').textContent = `₹${ledger.summary.outstanding_balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    const list = document.getElementById('ledger-transactions-list');
+    list.innerHTML = ledger.transactions.map(t => {
+      const isInvoice = t.type === 'Invoice';
+      const typeClass = isInvoice ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+
+      return `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="px-6 py-4 font-mono text-xs">${new Date(t.date).toLocaleDateString('en-GB')}</td>
+          <td class="px-6 py-4 text-xs font-bold"><span class="${typeClass} px-2 py-0.5 rounded border">${t.type}</span></td>
+          <td class="px-6 py-4 text-slate-800 text-xs font-medium">${escapeHTML(t.reference)}</td>
+          <td class="px-6 py-4 font-mono text-xs text-indigo-600 font-semibold">${t.debit > 0 ? '₹' + t.debit.toFixed(2) : '—'}</td>
+          <td class="px-6 py-4 font-mono text-xs text-emerald-600 font-semibold">${t.credit > 0 ? '₹' + t.credit.toFixed(2) : '—'}</td>
+          <td class="px-6 py-4 font-mono text-xs font-bold text-slate-800">₹${t.running_balance.toFixed(2)}</td>
+        </tr>
+      `;
+    }).join('') || `<tr><td colspan="6" class="text-center py-8 text-slate-400">No transactions recorded for this customer yet.</td></tr>`;
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+// TAX SUMMARY & EXPORTS
+function loadReportsScreen() {
+  document.getElementById('reports-gst-summary').classList.add('hidden');
+}
+
+async function loadGSTReport() {
+  const year = document.getElementById('report-year').value;
+  const month = document.getElementById('report-month').value;
+
+  try {
+    const res = await apiFetch(`/reports/gst?year=${year}&month=${month}`);
+    const report = res.data;
+
+    document.getElementById('reports-gst-summary').classList.remove('hidden');
+    document.getElementById('reports-taxable-total').textContent = `₹${report.summary.taxable_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    document.getElementById('reports-cgst-total').textContent = `₹${report.summary.cgst_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    document.getElementById('reports-sgst-total').textContent = `₹${report.summary.sgst_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    document.getElementById('reports-igst-total').textContent = `₹${report.summary.igst_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    document.getElementById('reports-grand-total').textContent = `₹${report.summary.grand_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+
+    showToast(`GST Report fetched for ${year}-${month}. Ready for export.`);
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+async function downloadGSTReportExcel() {
+  const year = document.getElementById('report-year').value;
+  const month = document.getElementById('report-month').value;
+
+  try {
+    const blob = await apiFetch(`/reports/gst/export?year=${year}&month=${month}`);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `GST_Report_${year}_${month}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+async function downloadSalesExcel() {
+  try {
+    const blob = await apiFetch('/reports/sales/export');
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Sales_Ledger_Export.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch (err) {
+    showToast(err.message, 'circle-xmark');
+  }
+}
+
+// BACKUPS & RESTORE SYSTEM
+function triggerManualBackup() {
+  window.open(`${API_BASE}/settings/backup?token=${encodeURIComponent(token)}`);
+  showToast('Database backup file download triggered.');
+}
+
+async function triggerRestoreBackup() {
+  const input = document.getElementById('restore-file-input');
+  if (!input.files || input.files.length === 0) {
+    showToast('Please select a JSON backup file first.', 'exclamation-triangle');
+    return;
+  }
+
+  const file = input.files[0];
+  const reader = new FileReader();
+
+  reader.onload = async (e) => {
+    try {
+      const json = JSON.parse(e.target.result);
+
+      await apiFetch('/settings/restore', {
+        method: 'POST',
+        body: JSON.stringify(json)
+      });
+
+      showToast('Database backup file restored successfully!');
+      input.value = '';
+      loadSettingsAndLogs();
+    } catch (err) {
+      showToast('Invalid backup file payload format: ' + err.message, 'circle-xmark');
+    }
+  };
+
+  reader.readAsText(file);
 }
 
 // System settings & security logs
